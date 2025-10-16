@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2196F3">
+    <title>Share PWA</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .shared-content {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .shared-content h2 {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .shared-content p {
+            color: #333;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+        .install-prompt {
+            background: #2196F3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .install-btn {
+            background: white;
+            color: #2196F3;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .status {
+            background: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .file-preview {
+            margin-top: 15px;
+        }
+        .file-preview img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Share PWA</h1>
+        <p>다른 앱에서 콘텐츠를 공유하면 여기에 표시됩니다!</p>
+        
+        <div id="installPrompt" class="install-prompt" style="display: none;">
+            <p>📱 홈 화면에 추가하고 공유 메뉴에서 사용하세요</p>
+            <button id="installBtn" class="install-btn">설치하기</button>
+        </div>
+        
+        <div id="sharedContent" class="shared-content" style="display: none;">
+            <h2>공유된 콘텐츠</h2>
+            <div id="contentDisplay"></div>
+            <div id="filePreview" class="file-preview"></div>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Service Worker 등록
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('Service Worker 등록 성공:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker 등록 실패:', error);
+                });
+        }
+
+        // 설치 프롬프트
+        let deferredPrompt;
+        const installPrompt = document.getElementById('installPrompt');
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installPrompt.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`설치 결과: ${outcome}`);
+                deferredPrompt = null;
+                installPrompt.style.display = 'none';
+            }
+        });
+
+        // 공유된 데이터 처리
+        window.addEventListener('DOMContentLoaded', async () => {
+            const url = new URL(window.location.href);
+            
+            // POST로 공유된 데이터 확인 (share target)
+            if (url.pathname === '/share') {
+                showStatus('공유 데이터를 처리하고 있습니다...');
+                
+                // Service Worker에서 전달받은 데이터 확인
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        if (event.data.type === 'shared-data') {
+                            displaySharedContent(event.data.data);
+                        }
+                    });
+                }
+            }
+            
+            // URL 파라미터로 전달된 공유 데이터 확인 (GET 방식)
+            const title = url.searchParams.get('title');
+            const text = url.searchParams.get('text');
+            const sharedUrl = url.searchParams.get('url');
+            
+            if (title || text || sharedUrl) {
+                displaySharedContent({ title, text, url: sharedUrl });
+            }
+        });
+
+        function displaySharedContent(data) {
+            const sharedContent = document.getElementById('sharedContent');
+            const contentDisplay = document.getElementById('contentDisplay');
+            
+            let html = '';
+            if (data.title) html += `<p><strong>제목:</strong> ${data.title}</p>`;
+            if (data.text) html += `<p><strong>내용:</strong> ${data.text}</p>`;
+            if (data.url) html += `<p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>`;
+            
+            contentDisplay.innerHTML = html;
+            sharedContent.style.display = 'block';
+            showStatus('✅ 공유 완료!');
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
