@@ -7,8 +7,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Share PWA v1.0.0</title>
-    <link rel="manifest" href="/manifest.json?v=1.0.0">
+    <title>Share PWA v1.0.1</title>
+    <link rel="manifest" href="/manifest.json?v=1.0.1">
     <style>
         * {
             margin: 0;
@@ -89,7 +89,7 @@
     <div class="container">
         <h1>🚀 Share PWA</h1>
         <p>다른 앱에서 콘텐츠를 공유하면 여기에 표시됩니다!</p>
-        <p style="font-size: 12px; color: #999; margin-top: 5px;">v1.0.0</p>
+        <p style="font-size: 12px; color: #999; margin-top: 5px;">v1.0.1</p>
         
         <div id="installPrompt" class="install-prompt" style="display: none;">
             <p>📱 홈 화면에 추가하고 공유 메뉴에서 사용하세요</p>
@@ -107,7 +107,7 @@
 
     <script>
         // 버전 정보
-        const APP_VERSION = '1.0.0';
+        const APP_VERSION = '1.0.1';
         console.log(`Share PWA v${APP_VERSION}`);
         
         // Service Worker 등록
@@ -190,14 +190,33 @@
         });
 
         function displaySharedContent(data) {
+            console.log('📥 공유 데이터 수신:', data);
+            
             const sharedContent = document.getElementById('sharedContent');
             const contentDisplay = document.getElementById('contentDisplay');
             const filePreview = document.getElementById('filePreview');
+
+            // 데이터가 없으면 에러 표시
+            if (!data || (typeof data === 'object' && Object.keys(data).every(key => !data[key]))) {
+                console.warn('⚠️ 공유 데이터가 비어있습니다');
+                contentDisplay.innerHTML = '<p style="color: #f44336;">⚠️ 공유 데이터가 비어있습니다.</p>';
+                sharedContent.style.display = 'block';
+                showStatus('⚠️ 데이터 없음');
+                return;
+            }
 
             let html = '';
             if (data.title) html += `<p><strong>제목:</strong> ${data.title}</p>`;
             if (data.text) html += `<p><strong>내용:</strong> ${data.text}</p>`;
             if (data.url) html += `<p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>`;
+
+            // 아무 내용도 없으면 디버그 정보 표시
+            if (!html) {
+                html = `<p style="color: #999;">
+                    <strong>디버그 정보:</strong><br>
+                    받은 데이터: <code>${JSON.stringify(data, null, 2)}</code>
+                </p>`;
+            }
 
             contentDisplay.innerHTML = html;
 
@@ -207,7 +226,9 @@
                 const parts = [];
                 for (const f of data.files) {
                     if (f.type && f.type.startsWith('image/')) {
-                        parts.push(`<div><img src="${f.url}" alt="${f.name}"></div>`);
+                        parts.push(`<div><img src="${f.url}" alt="${f.name}" style="max-width: 100%; border-radius: 8px;"></div>`);
+                    } else if (f.type && f.type.startsWith('video/')) {
+                        parts.push(`<div><video src="${f.url}" controls style="max-width: 100%; border-radius: 8px;"></video></div>`);
                     } else {
                         parts.push(`<div><a href="${f.url}" target="_blank">${f.name} (${f.type || 'file'})</a></div>`);
                     }

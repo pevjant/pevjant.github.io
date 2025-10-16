@@ -40,7 +40,11 @@
     <button onclick="testUrlShare()">URL 공유</button>
     <button onclick="testImageShare()">이미지 공유</button>
     
-    <h2>2. Manifest 확인</h2>
+    <h2>2. 수동 테스트 (PC용)</h2>
+    <button onclick="testManualShare()">URL 파라미터로 테스트</button>
+    <button onclick="testPostShare()">POST로 테스트 (안드로이드 방식)</button>
+    
+    <h2>3. Manifest 확인</h2>
     <button onclick="checkManifest()">Manifest 확인</button>
     <button onclick="checkServiceWorker()">Service Worker 확인</button>
     
@@ -102,6 +106,43 @@
                 }
             } catch (err) {
                 result.innerHTML = `❌ 공유 실패: ${err.message}`;
+            }
+        }
+
+        // 수동 테스트 - URL 파라미터 (PC용)
+        function testManualShare() {
+            const testUrl = '/?title=테스트제목&text=테스트내용입니다&url=https://example.com';
+            result.innerHTML = `
+                <p>✅ 테스트 URL 생성됨</p>
+                <p><a href="${testUrl}" target="_blank">여기를 클릭하여 테스트</a></p>
+            `;
+        }
+
+        // POST 방식 테스트 (안드로이드 Share Target 시뮬레이션)
+        async function testPostShare() {
+            try {
+                const formData = new FormData();
+                formData.append('title', '테스트 제목');
+                formData.append('text', '테스트 텍스트 내용');
+                formData.append('url', 'https://example.com');
+
+                const response = await fetch('/share', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.redirected) {
+                    result.innerHTML = `
+                        <p>✅ POST 요청 성공!</p>
+                        <p>리다이렉트: <a href="${response.url}" target="_blank">${response.url}</a></p>
+                    `;
+                    // 자동으로 리다이렉트된 페이지로 이동
+                    window.location.href = response.url;
+                } else {
+                    result.innerHTML = `⚠️ 응답: ${response.status} ${response.statusText}`;
+                }
+            } catch (err) {
+                result.innerHTML = `❌ POST 실패: ${err.message}`;
             }
         }
 
