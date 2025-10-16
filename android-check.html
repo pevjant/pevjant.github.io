@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>안드로이드 Share Target 진단</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 15px;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 100%;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 20px; margin-bottom: 15px; color: #333; }
+        h2 { font-size: 16px; margin: 15px 0 10px; color: #2196F3; }
+        .item {
+            padding: 10px;
+            margin: 8px 0;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 3px solid #ddd;
+        }
+        .item.ok { border-left-color: #4CAF50; background: #f1f8f4; }
+        .item.fail { border-left-color: #f44336; background: #ffebee; }
+        .item.warn { border-left-color: #ff9800; background: #fff3e0; }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .status.ok { background: #4CAF50; color: white; }
+        .status.fail { background: #f44336; color: white; }
+        .status.warn { background: #ff9800; color: white; }
+        pre {
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        .highlight {
+            background: yellow;
+            padding: 2px 4px;
+            font-weight: bold;
+        }
+        .critical {
+            background: #ffcdd2;
+            border: 2px solid #f44336;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #c8e6c9;
+            border: 2px solid #4CAF50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 안드로이드 Share Target 진단</h1>
+        
+        <div id="platform-check"></div>
+        <div id="install-check"></div>
+        <div id="manifest-check"></div>
+        <div id="icon-check"></div>
+        <div id="sw-check"></div>
+        <div id="final-verdict"></div>
+
+        <h2>🛠️ 조치 방법</h2>
+        <div id="actions"></div>
+        
+        <h2>📋 상세 정보</h2>
+        <button onclick="copyDiagnostics()">진단 정보 복사</button>
+        <button onclick="location.reload()">다시 진단</button>
+        <pre id="details"></pre>
+    </div>
+
+    <script>
+        const diagnostics = {
+            platform: '',
+            isAndroid: false,
+            isChrome: false,
+            chromeVersion: 0,
+            isInstalled: false,
+            manifestOk: false,
+            iconsOk: false,
+            swOk: false,
+            errors: [],
+            warnings: []
+        };
+
+        async function runDiagnostics() {
+            checkPlatform();
+            await checkInstallation();
+            await checkManifest();
+            await checkIcons();
+            await checkServiceWorker();
+            showFinalVerdict();
+            showActions();
+            showDetails();
+        }
+
+        function checkPlatform() {
+            const ua = navigator.userAgent;
+            diagnostics.platform = ua;
+            diagnostics.isAndroid = /Android/i.test(ua);
+            diagnostics.isChrome = /Chrome/i.test(ua) && !/Edge/i.test(ua);
+            
+            const match = ua.match(/Chrome\/(\d+)/);
+            diagnostics.chromeVersion = match ? parseInt(match[1]) : 0;
+
+            const div = document.getElementById('platform-check');
+            let html = '<h2>1️⃣ 플랫폼 확인</h2>';
+
+            if (!diagnostics.isAndroid) {
+                html += `<div class="item fail">
+                    ❌ Android가 아닙니다<span class="status fail">CRITICAL</span>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    Share Target API는 <span class="highlight">Android만</span> 지원합니다. iOS, PC에서는 작동하지 않습니다.
+                    </div>
+                </div>`;
+                diagnostics.errors.push('플랫폼이 Android가 아님');
+            } else {
+                html += `<div class="item ok">✅ Android 감지됨<span class="status ok">OK</span></div>`;
+            }
+
+            if (!diagnostics.isChrome) {
+                html += `<div class="item fail">
+                    ❌ Chrome이 아닙니다<span class="status fail">CRITICAL</span>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    Samsung Internet, Firefox 등은 미지원. <span class="highlight">Chrome 사용 필수</span>
+                    </div>
+                </div>`;
+                diagnostics.errors.push('Chrome 브라우저가 아님');
+            } else {
+                html += `<div class="item ok">✅ Chrome 감지됨<span class="status ok">OK</span></div>`;
+            }
+
+            if (diagnostics.chromeVersion < 84) {
+                html += `<div class="item fail">
+                    ❌ Chrome 버전: ${diagnostics.chromeVersion}<span class="status fail">CRITICAL</span>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    Chrome 84 이상 필요. 현재: <span class="highlight">${diagnostics.chromeVersion}</span>
+                    </div>
+                </div>`;
+                diagnostics.errors.push(`Chrome 버전 부족 (${diagnostics.chromeVersion} < 84)`);
+            } else {
+                html += `<div class="item ok">✅ Chrome 버전: ${diagnostics.chromeVersion}<span class="status ok">OK</span></div>`;
+            }
+
+            div.innerHTML = html;
+        }
+
+        async function checkInstallation() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                                 window.navigator.standalone ||
+                                 document.referrer.includes('android-app://');
+
+            diagnostics.isInstalled = isStandalone;
+
+            const div = document.getElementById('install-check');
+            let html = '<h2>2️⃣ 설치 상태</h2>';
+
+            if (!isStandalone) {
+                html += `<div class="item fail">
+                    ❌ PWA가 설치되지 않음<span class="status fail">CRITICAL</span>
+                    <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    주소창이 보인다면 = PWA 설치 안됨.<br>
+                    <span class="highlight">반드시 "앱 설치"</span>를 해야 공유 타겟에 나타납니다.
+                    </div>
+                </div>`;
+                diagnostics.errors.push('PWA 미설치 (Standalone 모드 아님)');
+            } else {
+                html += `<div class="item ok">✅ PWA 설치됨 (Standalone 모드)<span class="status ok">OK</span></div>`;
+            }
+
+            div.innerHTML = html;
+        }
+
+        async function checkManifest() {
+            const div = document.getElementById('manifest-check');
+            let html = '<h2>3️⃣ Manifest 확인</h2>';
+
+            try {
+                const response = await fetch('/manifest.json');
+                const manifest = await response.json();
+
+                const checks = [
+                    { name: 'name 필드', ok: !!manifest.name },
+                    { name: 'short_name 필드', ok: !!manifest.short_name },
+                    { name: 'start_url 필드', ok: !!manifest.start_url },
+                    { name: 'display: standalone', ok: manifest.display === 'standalone' },
+                    { name: 'icons 배열', ok: Array.isArray(manifest.icons) && manifest.icons.length > 0 },
+                    { name: '192x192 아이콘', ok: manifest.icons.some(i => i.sizes === '192x192') },
+                    { name: '512x512 아이콘', ok: manifest.icons.some(i => i.sizes === '512x512') },
+                    { name: 'share_target 정의', ok: !!manifest.share_target },
+                    { name: 'share_target.action', ok: manifest.share_target?.action === '/share' },
+                    { name: 'share_target.method = POST', ok: manifest.share_target?.method === 'POST' },
+                    { name: 'share_target.enctype', ok: manifest.share_target?.enctype === 'multipart/form-data' },
+                    { name: 'share_target.params.files', ok: Array.isArray(manifest.share_target?.params?.files) }
+                ];
+
+                diagnostics.manifestOk = checks.every(c => c.ok);
+
+                checks.forEach(check => {
+                    if (check.ok) {
+                        html += `<div class="item ok">✅ ${check.name}<span class="status ok">OK</span></div>`;
+                    } else {
+                        html += `<div class="item fail">❌ ${check.name}<span class="status fail">FAIL</span></div>`;
+                        diagnostics.errors.push(`Manifest: ${check.name} 실패`);
+                    }
+                });
+
+            } catch (err) {
+                html += `<div class="item fail">❌ Manifest 로드 실패<span class="status fail">CRITICAL</span></div>`;
+                diagnostics.errors.push(`Manifest 로드 오류: ${err.message}`);
+            }
+
+            div.innerHTML = html;
+        }
+
+        async function checkIcons() {
+            const div = document.getElementById('icon-check');
+            let html = '<h2>4️⃣ 아이콘 확인</h2>';
+
+            const icons = [
+                { url: '/icon-192x192.png', size: '192x192' },
+                { url: '/icon-512x512.png', size: '512x512' }
+            ];
+
+            let allOk = true;
+
+            for (const icon of icons) {
+                try {
+                    const response = await fetch(icon.url, { method: 'HEAD' });
+                    if (response.ok) {
+                        html += `<div class="item ok">✅ ${icon.size} 아이콘<span class="status ok">OK</span></div>`;
+                    } else {
+                        html += `<div class="item fail">❌ ${icon.size} 아이콘 (${response.status})<span class="status fail">FAIL</span></div>`;
+                        diagnostics.errors.push(`아이콘 ${icon.size} 로드 실패 (HTTP ${response.status})`);
+                        allOk = false;
+                    }
+                } catch (err) {
+                    html += `<div class="item fail">❌ ${icon.size} 아이콘 (오류)<span class="status fail">FAIL</span></div>`;
+                    diagnostics.errors.push(`아이콘 ${icon.size} 오류: ${err.message}`);
+                    allOk = false;
+                }
+            }
+
+            diagnostics.iconsOk = allOk;
+            div.innerHTML = html;
+        }
+
+        async function checkServiceWorker() {
+            const div = document.getElementById('sw-check');
+            let html = '<h2>5️⃣ Service Worker 확인</h2>';
+
+            if (!('serviceWorker' in navigator)) {
+                html += `<div class="item fail">❌ Service Worker 미지원<span class="status fail">CRITICAL</span></div>`;
+                diagnostics.errors.push('Service Worker 미지원');
+                diagnostics.swOk = false;
+                div.innerHTML = html;
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                
+                if (!registration) {
+                    html += `<div class="item fail">❌ Service Worker 미등록<span class="status fail">CRITICAL</span></div>`;
+                    diagnostics.errors.push('Service Worker 미등록');
+                    diagnostics.swOk = false;
+                } else {
+                    html += `<div class="item ok">✅ Service Worker 등록됨<span class="status ok">OK</span></div>`;
+                    
+                    if (registration.active) {
+                        html += `<div class="item ok">✅ Active 상태<span class="status ok">OK</span></div>`;
+                    } else {
+                        html += `<div class="item fail">❌ Active 아님<span class="status fail">FAIL</span></div>`;
+                        diagnostics.errors.push('Service Worker가 Active 상태 아님');
+                    }
+
+                    diagnostics.swOk = !!registration.active;
+                }
+            } catch (err) {
+                html += `<div class="item fail">❌ 확인 오류<span class="status fail">FAIL</span></div>`;
+                diagnostics.errors.push(`Service Worker 확인 오류: ${err.message}`);
+                diagnostics.swOk = false;
+            }
+
+            div.innerHTML = html;
+        }
+
+        function showFinalVerdict() {
+            const div = document.getElementById('final-verdict');
+            
+            const allOk = diagnostics.isAndroid && 
+                         diagnostics.isChrome && 
+                         diagnostics.chromeVersion >= 84 &&
+                         diagnostics.isInstalled &&
+                         diagnostics.manifestOk &&
+                         diagnostics.iconsOk &&
+                         diagnostics.swOk;
+
+            if (allOk) {
+                div.innerHTML = `
+                    <div class="success">
+                        <h2 style="color: #2e7d32;">✅ 모든 조건 충족!</h2>
+                        <p style="margin-top: 10px;">
+                        갤러리 등에서 이미지를 공유할 때 <span class="highlight">"SharePWA"</span>가 목록에 나타나야 합니다.
+                        </p>
+                        <p style="margin-top: 10px; font-size: 13px;">
+                        만약 여전히 안 보인다면:<br>
+                        1. PWA 완전히 삭제<br>
+                        2. 안드로이드 재부팅<br>
+                        3. PWA 재설치
+                        </p>
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="critical">
+                        <h2 style="color: #c62828;">❌ 문제 발견: ${diagnostics.errors.length}개</h2>
+                        <p style="margin-top: 10px;">아래 조치 방법을 따라 문제를 해결하세요.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function showActions() {
+            const div = document.getElementById('actions');
+            let html = '';
+
+            if (!diagnostics.isAndroid) {
+                html += `
+                    <div class="item fail">
+                        <strong>🚫 Android 기기에서 테스트하세요</strong><br>
+                        Share Target API는 Android에서만 작동합니다. iOS, Windows, Mac에서는 지원되지 않습니다.
+                    </div>
+                `;
+            }
+
+            if (!diagnostics.isChrome || diagnostics.chromeVersion < 84) {
+                html += `
+                    <div class="item fail">
+                        <strong>📱 Chrome 업데이트</strong><br>
+                        1. Play Store 앱 실행<br>
+                        2. "Chrome" 검색<br>
+                        3. "업데이트" 클릭
+                    </div>
+                `;
+            }
+
+            if (!diagnostics.isInstalled) {
+                html += `
+                    <div class="item fail">
+                        <strong>⚠️ PWA 설치 방법 (중요!)</strong><br>
+                        1. Chrome에서 https://pevjant.github.io 접속<br>
+                        2. 주소창 오른쪽 끝 <span class="highlight">"설치"</span> 아이콘 클릭<br>
+                        3. "설치" 버튼 클릭 (※ "홈 화면에 추가"가 아님!)<br>
+                        4. 홈 화면에서 앱 실행하여 주소창이 없는지 확인
+                    </div>
+                `;
+            }
+
+            if (!diagnostics.manifestOk || !diagnostics.iconsOk) {
+                html += `
+                    <div class="item warn">
+                        <strong>🔧 개발자 수정 필요</strong><br>
+                        Manifest 또는 아이콘에 문제가 있습니다. 개발자에게 문의하세요.
+                    </div>
+                `;
+            }
+
+            if (!diagnostics.swOk) {
+                html += `
+                    <div class="item warn">
+                        <strong>🔄 Service Worker 재등록</strong><br>
+                        1. Chrome 설정 → 사이트 설정<br>
+                        2. pevjant.github.io 찾기<br>
+                        3. "저장공간 지우기"<br>
+                        4. 페이지 새로고침
+                    </div>
+                `;
+            }
+
+            if (html === '') {
+                html = '<div class="item ok">✅ 추가 조치 불필요</div>';
+            }
+
+            div.innerHTML = html;
+        }
+
+        function showDetails() {
+            const details = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                isAndroid: diagnostics.isAndroid,
+                isChrome: diagnostics.isChrome,
+                chromeVersion: diagnostics.chromeVersion,
+                isInstalled: diagnostics.isInstalled,
+                displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+                manifestOk: diagnostics.manifestOk,
+                iconsOk: diagnostics.iconsOk,
+                swOk: diagnostics.swOk,
+                errors: diagnostics.errors,
+                warnings: diagnostics.warnings,
+                url: location.href,
+                referrer: document.referrer
+            };
+
+            document.getElementById('details').textContent = JSON.stringify(details, null, 2);
+        }
+
+        function copyDiagnostics() {
+            const text = document.getElementById('details').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('📋 진단 정보가 복사되었습니다!');
+            });
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.addEventListener('DOMContentLoaded', runDiagnostics);
+    </script>
+</body>
+</html>

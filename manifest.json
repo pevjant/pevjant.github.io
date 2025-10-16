@@ -1,13 +1,12 @@
 {
-  "name": "My Share PWA",
+  "name": "Share PWA",
   "short_name": "SharePWA",
   "description": "Share content from other apps",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196F3",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -45,7 +44,7 @@
       "files": [
         {
           "name": "files",
-          "accept": ["image/*", "video/*", "audio/*", "text/*"]
+          "accept": ["image/*", "video/*"]
         }
       ]
     }
