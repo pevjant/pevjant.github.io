@@ -5,66 +5,54 @@ const urlsToCache = [
 ];
 
 // 설치
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
-  );
-});
-
-// 활성화
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-});
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 // Fetch 처리
 self.addEventListener('fetch', (event) => {
-  // POST 요청 (공유 데이터) 처리
-  if (event.request.method === 'POST' && event.request.url.endsWith('/share')) {
-    event.respondWith(
-      (async () => {
-        const formData = await event.request.formData();
-        const data = {
-          title: formData.get('title'),
-          text: formData.get('text'),
-          url: formData.get('url')
-        };
-        
-        // 파일 처리
-        const files = formData.getAll('files');
-        if (files && files.length > 0) {
-          data.files = files;
-        }
-        
-        // 클라이언트에 데이터 전달
-        const clients = await self.clients.matchAll();
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'shared-data',
-            data: data
-          });
-        });
-        
-        // 메인 페이지로 리디렉션
-        return Response.redirect('/', 303);
-      })()
-    );
-    return;
+  const url = new URL(event.request.url);
+  if (event.request.method === 'POST' && url.pathname === '/share') {
+    event.respondWith(handleShareTarget(event.request));
   }
-  
-  // 일반 GET 요청 처리
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
-  );
 });
+
+async function handleShareTarget(request) {
+  try {
+    const formData = await request.formData();
+    const title = formData.get('title') || '';
+    const text = formData.get('text') || '';
+    const sharedUrl = formData.get('url') || '';
+
+    // manifest.json의 name: "files"와 일치해야 함
+    const files = formData.getAll('files') || [];
+
+    // 파일을 Cache에 저장하고 접근 가능한 URL을 만들어서 클라이언트에 전달
+    const fileEntries = [];
+    for (const file of files) {
+      if (!(file instanceof File)) continue;
+      const fileUrl = `/shared/${crypto.randomUUID()}/${encodeURIComponent(file.name)}`;
+      const cache = await caches.open('shared-files');
+      await cache.put(fileUrl, new Response(file, {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' }
+      }));
+      fileEntries.push({
+        name: file.name,
+        type: file.type || '',
+        size: file.size || 0,
+        url: fileUrl
+      });
+    }
+
+    // 모든 클라이언트에 공유 데이터 전달
+    const data = { title, text, url: sharedUrl, files: fileEntries };
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      client.postMessage({ type: 'shared-data', data });
+    }
+
+    // UI 페이지로 리다이렉트
+    return Response.redirect('/?shared=1', 303);
+  } catch (e) {
+    return new Response('Share handling failed', { status: 500 });
+  }
+}

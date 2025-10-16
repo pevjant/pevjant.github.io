@@ -165,13 +165,29 @@
         function displaySharedContent(data) {
             const sharedContent = document.getElementById('sharedContent');
             const contentDisplay = document.getElementById('contentDisplay');
-            
+            const filePreview = document.getElementById('filePreview');
+
             let html = '';
             if (data.title) html += `<p><strong>제목:</strong> ${data.title}</p>`;
             if (data.text) html += `<p><strong>내용:</strong> ${data.text}</p>`;
             if (data.url) html += `<p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>`;
-            
+
             contentDisplay.innerHTML = html;
+
+            // 파일 미리보기
+            filePreview.innerHTML = '';
+            if (Array.isArray(data.files) && data.files.length) {
+                const parts = [];
+                for (const f of data.files) {
+                    if (f.type && f.type.startsWith('image/')) {
+                        parts.push(`<div><img src="${f.url}" alt="${f.name}"></div>`);
+                    } else {
+                        parts.push(`<div><a href="${f.url}" target="_blank">${f.name} (${f.type || 'file'})</a></div>`);
+                    }
+                }
+                filePreview.innerHTML = parts.join('');
+            }
+
             sharedContent.style.display = 'block';
             showStatus('✅ 공유 완료!');
         }
