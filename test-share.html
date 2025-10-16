@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공유 테스트</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>PWA 공유 테스트</h1>
+    
+    <h2>1. Web Share API 테스트</h2>
+    <button onclick="testTextShare()">텍스트 공유</button>
+    <button onclick="testUrlShare()">URL 공유</button>
+    <button onclick="testImageShare()">이미지 공유</button>
+    
+    <h2>2. Manifest 확인</h2>
+    <button onclick="checkManifest()">Manifest 확인</button>
+    <button onclick="checkServiceWorker()">Service Worker 확인</button>
+    
+    <div id="result" class="result"></div>
+
+    <script>
+        const result = document.getElementById('result');
+
+        async function testTextShare() {
+            try {
+                await navigator.share({
+                    title: '테스트 제목',
+                    text: '테스트 텍스트 내용입니다',
+                    url: 'https://example.com'
+                });
+                result.innerHTML = '✅ 텍스트 공유 성공';
+            } catch (err) {
+                result.innerHTML = `❌ 공유 실패: ${err.message}`;
+            }
+        }
+
+        async function testUrlShare() {
+            try {
+                await navigator.share({
+                    title: 'Google',
+                    url: 'https://www.google.com'
+                });
+                result.innerHTML = '✅ URL 공유 성공';
+            } catch (err) {
+                result.innerHTML = `❌ 공유 실패: ${err.message}`;
+            }
+        }
+
+        async function testImageShare() {
+            try {
+                // 테스트용 이미지 생성
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FF6B6B';
+                ctx.fillRect(0, 0, 400, 300);
+                ctx.fillStyle = 'white';
+                ctx.font = '30px sans-serif';
+                ctx.fillText('Test Image', 120, 150);
+                
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const file = new File([blob], 'test-image.png', { type: 'image/png' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: '테스트 이미지',
+                        text: '이미지 공유 테스트'
+                    });
+                    result.innerHTML = '✅ 이미지 공유 성공';
+                } else {
+                    result.innerHTML = '❌ 이 브라우저는 파일 공유를 지원하지 않습니다';
+                }
+            } catch (err) {
+                result.innerHTML = `❌ 공유 실패: ${err.message}`;
+            }
+        }
+
+        async function checkManifest() {
+            try {
+                const response = await fetch('/manifest.json');
+                const manifest = await response.json();
+                result.innerHTML = `
+                    <h3>Manifest 정보</h3>
+                    <pre>${JSON.stringify(manifest, null, 2)}</pre>
+                `;
+            } catch (err) {
+                result.innerHTML = `❌ Manifest 로드 실패: ${err.message}`;
+            }
+        }
+
+        async function checkServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    result.innerHTML = `
+                        <h3>Service Worker 상태</h3>
+                        <p>✅ 등록됨</p>
+                        <p>Scope: ${registration.scope}</p>
+                        <p>Active: ${registration.active ? '✅' : '❌'}</p>
+                        <p>Waiting: ${registration.waiting ? '✅' : '❌'}</p>
+                        <p>Installing: ${registration.installing ? '✅' : '❌'}</p>
+                    `;
+                } else {
+                    result.innerHTML = '❌ Service Worker가 등록되지 않았습니다';
+                }
+            } else {
+                result.innerHTML = '❌ 이 브라우저는 Service Worker를 지원하지 않습니다';
+            }
+        }
+
+        // 페이지 로드 시 지원 여부 확인
+        window.addEventListener('DOMContentLoaded', () => {
+            const support = [];
+            if ('serviceWorker' in navigator) support.push('✅ Service Worker');
+            else support.push('❌ Service Worker');
+            
+            if ('share' in navigator) support.push('✅ Web Share API');
+            else support.push('❌ Web Share API');
+            
+            result.innerHTML = `<h3>브라우저 지원</h3><p>${support.join('<br>')}</p>`;
+        });
+    </script>
+</body>
+</html>

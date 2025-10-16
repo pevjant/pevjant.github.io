@@ -1,19 +1,55 @@
-const CACHE_NAME = 'share-pwa-v1';
+const CACHE_NAME = 'share-pwa-v2';
 const urlsToCache = [
   '/',
-  '/index.html'
+  '/index.html',
+  '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png'
 ];
 
 // 설치
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME && cacheName !== 'shared-files') {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
 
 // Fetch 처리
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  
+  // POST 요청으로 들어오는 공유 타겟 처리
   if (event.request.method === 'POST' && url.pathname === '/share') {
     event.respondWith(handleShareTarget(event.request));
+    return;
   }
+  
+  // 캐시된 파일 제공 (공유된 파일 포함)
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
+  );
 });
 
 async function handleShareTarget(request) {

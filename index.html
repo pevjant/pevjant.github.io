@@ -138,21 +138,28 @@
         window.addEventListener('DOMContentLoaded', async () => {
             const url = new URL(window.location.href);
             
-            // POST로 공유된 데이터 확인 (share target)
-            if (url.pathname === '/share') {
+            // 공유로 들어온 경우 (URL 파라미터 확인)
+            if (url.searchParams.get('shared') === '1') {
                 showStatus('공유 데이터를 처리하고 있습니다...');
+            }
+            
+            // Service Worker에서 전달받은 데이터 확인
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data.type === 'shared-data') {
+                        displaySharedContent(event.data.data);
+                    }
+                });
                 
-                // Service Worker에서 전달받은 데이터 확인
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.addEventListener('message', (event) => {
-                        if (event.data.type === 'shared-data') {
-                            displaySharedContent(event.data.data);
-                        }
+                // 페이지 로드 시 이미 공유된 데이터가 있는지 확인
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'request-shared-data'
                     });
                 }
             }
             
-            // URL 파라미터로 전달된 공유 데이터 확인 (GET 방식)
+            // URL 파라미터로 전달된 공유 데이터 확인 (GET 방식 fallback)
             const title = url.searchParams.get('title');
             const text = url.searchParams.get('text');
             const sharedUrl = url.searchParams.get('url');
