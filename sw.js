@@ -1,4 +1,4 @@
-const CACHE_NAME = 'share-pwa-v1.0.2';
+const CACHE_NAME = 'share-pwa-v1.1.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -86,18 +86,27 @@ async function handleShareTarget(request) {
       });
     }
 
-    // 모든 클라이언트에 공유 데이터 전달
-    const data = { title, text, url: sharedUrl, files: fileEntries };
-    console.log('📤 클라이언트로 전송:', data);
+    // 공유 데이터를 Cache에 저장 (페이지가 로드된 후 읽을 수 있도록)
+    const data = { 
+      title, 
+      text, 
+      url: sharedUrl, 
+      files: fileEntries,
+      timestamp: Date.now()
+    };
+    console.log('� 데이터 저장:', data);
     
-    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    console.log(`👥 클라이언트 개수: ${allClients.length}`);
-    
-    for (const client of allClients) {
-      client.postMessage({ type: 'shared-data', data });
-    }
+    // Cache API를 사용하여 데이터 저장
+    const dataCache = await caches.open('shared-data');
+    await dataCache.put(
+      '/shared-data/latest',
+      new Response(JSON.stringify(data), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
 
     // UI 페이지로 리다이렉트
+    console.log('🔄 리다이렉트: /?shared=1');
     return Response.redirect('/?shared=1', 303);
   } catch (e) {
     console.error('❌ Share Target 처리 실패:', e);
