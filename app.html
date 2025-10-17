@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4A90E2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Image Composer</title>
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            overscroll-behavior: none;
+        }
+        .crop-area {
+            position: absolute;
+            border: 2px solid #4A90E2;
+            background: rgba(74, 144, 226, 0.1);
+            cursor: move;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #4A90E2;
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+        .handle-nw { top: -10px; left: -10px; cursor: nwse-resize; }
+        .handle-ne { top: -10px; right: -10px; cursor: nesw-resize; }
+        .handle-sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
+        .handle-se { bottom: -10px; right: -10px; cursor: nwse-resize; }
+        .image-card {
+            transition: transform 0.1s;
+        }
+        .image-card:active {
+            transform: scale(0.95);
+        }
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 앱 컨테이너 -->
+    <div id="app" class="max-w-2xl mx-auto bg-white min-h-screen shadow-lg">
+        <!-- 헤더 -->
+        <header class="bg-blue-500 text-white p-4 sticky top-0 z-50 shadow">
+            <h1 class="text-xl font-bold">✂️ Image Composer</h1>
+            <p class="text-sm opacity-90">이미지 크롭 & 합성</p>
+        </header>
+
+        <!-- 메인 콘텐츠 -->
+        <main class="pb-20">
+            <!-- 탭 네비게이션 -->
+            <nav class="flex border-b sticky top-16 bg-white z-40">
+                <button onclick="switchTab('input')" id="tab-input" class="flex-1 py-3 font-medium border-b-2 border-blue-500 text-blue-500">
+                    이미지
+                </button>
+                <button onclick="switchTab('edit')" id="tab-edit" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500">
+                    편집
+                </button>
+                <button onclick="switchTab('compose')" id="tab-compose" class="flex-1 py-3 font-medium border-b-2 border-transparent text-gray-500">
+                    합성
+                </button>
+            </nav>
+
+            <!-- 이미지 입력 탭 -->
+            <div id="content-input" class="p-4">
+                <!-- 파일 선택 -->
+                <label class="block w-full p-8 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-blue-400 active:bg-gray-50">
+                    <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+                    <div class="text-4xl mb-2">📁</div>
+                    <div class="text-lg font-medium">이미지 선택</div>
+                    <div class="text-sm text-gray-500 mt-1">여러 장 선택 가능</div>
+                </label>
+
+                <!-- 이미지 갤러리 -->
+                <div id="imageGallery" class="mt-4 grid grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- 편집 탭 -->
+            <div id="content-edit" class="p-4 hidden">
+                <!-- 프리셋 -->
+                <div class="mb-6">
+                    <h3 class="font-bold mb-3">크롭 프리셋</h3>
+                    <div class="grid grid-cols-2 gap-3" id="presetButtons"></div>
+                </div>
+
+                <!-- 선택된 이미지 정보 -->
+                <div id="selectedInfo" class="mb-4 p-3 bg-blue-50 rounded-lg hidden">
+                    <div class="text-sm font-medium text-blue-700">선택: <span id="selectedCount">0</span>개</div>
+                </div>
+
+                <!-- 크롭 편집기 -->
+                <div id="cropEditor" class="hidden">
+                    <h3 class="font-bold mb-3">크롭 영역 조정</h3>
+                    <div class="relative inline-block w-full">
+                        <img id="cropImage" class="max-w-full rounded">
+                        <div id="cropOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+                    </div>
+                    <div class="mt-4 space-y-2">
+                        <input type="text" id="commentInput" placeholder="코멘트 추가 (선택사항)" 
+                               class="w-full p-3 border rounded-lg">
+                        <button onclick="applyCrop()" class="w-full py-3 bg-blue-500 text-white rounded-lg font-medium active:bg-blue-600">
+                            ✓ 크롭 적용
+                        </button>
+                        <button onclick="cancelCrop()" class="w-full py-2 text-gray-600 border rounded-lg active:bg-gray-50">
+                            취소
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 배치 크롭 -->
+                <div id="batchCrop" class="hidden">
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold">배치 크롭</h3>
+                            <button onclick="cancelBatch()" class="text-sm text-gray-500">취소</button>
+                        </div>
+                        <div id="progressBar" class="hidden">
+                            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                <div id="progressFill" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                            <div class="text-center text-sm text-gray-600">
+                                <span id="progressText">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="startBatchCrop()" id="batchButton" 
+                            class="w-full py-3 bg-green-500 text-white rounded-lg font-medium active:bg-green-600">
+                        ✂️ 일괄 크롭 시작
+                    </button>
+                </div>
+            </div>
+
+            <!-- 합성 탭 -->
+            <div id="content-compose" class="p-4 hidden">
+                <!-- 합성 설정 -->
+                <div class="mb-6 space-y-3">
+                    <h3 class="font-bold">합성 설정</h3>
+                    <div>
+                        <label class="text-sm text-gray-600">최대 너비 (px)</label>
+                        <input type="number" id="maxWidth" value="1080" 
+                               class="w-full p-2 border rounded-lg mt-1">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">이미지 간격 (px)</label>
+                        <input type="number" id="padding" value="10" 
+                               class="w-full p-2 border rounded-lg mt-1">
+                    </div>
+                </div>
+
+                <!-- 크롭된 이미지 목록 -->
+                <div class="mb-4">
+                    <h3 class="font-bold mb-3">크롭된 이미지 (<span id="croppedCount">0</span>개)</h3>
+                    <div id="croppedList" class="space-y-2"></div>
+                </div>
+
+                <!-- 합성 버튼 -->
+                <button onclick="composeImages()" id="composeButton"
+                        class="w-full py-4 bg-purple-500 text-white rounded-lg font-bold text-lg active:bg-purple-600 disabled:bg-gray-300"
+                        disabled>
+                    🎨 이미지 합성하기
+                </button>
+
+                <!-- 결과 미리보기 -->
+                <div id="resultPreview" class="mt-6 hidden">
+                    <h3 class="font-bold mb-3">합성 결과</h3>
+                    <img id="resultImage" class="w-full rounded-lg shadow-lg mb-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="downloadResult()" 
+                                class="py-3 bg-green-500 text-white rounded-lg font-medium active:bg-green-600">
+                            💾 저장
+                        </button>
+                        <button onclick="shareResult()" 
+                                class="py-3 bg-blue-500 text-white rounded-lg font-medium active:bg-blue-600">
+                            📤 공유
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
