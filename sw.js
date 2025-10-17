@@ -1,4 +1,4 @@
-const CACHE_NAME = 'image-composer-v2.9.1';
+const CACHE_NAME = 'image-composer-v2.10.0';
 const urlsToCache = [
   '/',
   '/app.html',

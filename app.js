@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '2.10.0';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -385,7 +385,6 @@ function setupPreviewDrag() {
     let cachedRect = null;
     let rafId = null;
     let pointerId = null;
-    let lastInputUpdate = 0;
     const dbg = {
         scope: 'preview',
         type: '',
@@ -407,13 +406,10 @@ function setupPreviewDrag() {
         cropBox.style.height = cropArea.height + '%';
     };
     const render = (finalize = false) => {
-        // 입력 값만 간헐 업데이트 (스타일은 즉시 반영됨)
-        const now = performance.now();
-        if (finalize || now - lastInputUpdate > 100) {
-            updateCropInputs();
-            lastInputUpdate = now;
-        }
+        // 입력 값 업데이트 (매 프레임)
+        updateCropInputs();
         dbg.renderCount++;
+        const now = performance.now();
         dbg.lastRenderTs = now;
         const latency = dbg.lastRenderTs - dbg.lastMoveTs;
         if (isDebug() && (finalize || latency > 50)) {
@@ -792,7 +788,6 @@ function setupEditDrag() {
     let cachedRect = null;
     let rafId = null;
     let pointerId = null;
-    let lastInputUpdate = 0;
     const dbg = {
         scope: 'edit',
         type: '',
@@ -814,12 +809,10 @@ function setupEditDrag() {
         cropBox.style.height = cropArea.height + '%';
     };
     const render = (finalize = false) => {
-        const now = performance.now();
-        if (finalize || now - lastInputUpdate > 100) {
-            updateEditCropInputs();
-            lastInputUpdate = now;
-        }
+        // 입력 값 업데이트 (매 프레임)
+        updateEditCropInputs();
         dbg.renderCount++;
+        const now = performance.now();
         dbg.lastRenderTs = now;
         const latency = dbg.lastRenderTs - dbg.lastMoveTs;
         if (isDebug() && (finalize || latency > 50)) {
