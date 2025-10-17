@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.7.0';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -494,7 +494,7 @@ function setupPreviewDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-        cachedRect = img.getBoundingClientRect();
+    cachedRect = cropBox.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
     // 디버그 카운터 초기화
@@ -525,7 +525,7 @@ function setupPreviewDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-        cachedRect = img.getBoundingClientRect();
+    cachedRect = cropBox.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
@@ -882,7 +882,7 @@ function setupEditDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-        cachedRect = img.getBoundingClientRect();
+    cachedRect = cropBox.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
     // 디버그 카운터 초기화
@@ -913,7 +913,7 @@ function setupEditDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-        cachedRect = img.getBoundingClientRect();
+    cachedRect = cropBox.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
