@@ -134,7 +134,7 @@
                     <!-- 상단 -->
                     <div class="mb-4">
                         <label class="text-sm text-gray-600 mb-1 block">상단 (%)</label>
-                        <input type="range" id="rangeTop" min="0" max="50" value="0" 
+                        <input type="range" id="rangeTop" min="0" max="100" value="0" 
                                oninput="updateCropArea('top', this.value)"
                                class="w-full mb-1">
                         <input type="number" id="cropTop" min="0" max="100" value="0" 
@@ -145,7 +145,7 @@
                     <!-- 하단 -->
                     <div class="mb-4">
                         <label class="text-sm text-gray-600 mb-1 block">하단 (%)</label>
-                        <input type="range" id="rangeBottom" min="0" max="50" value="0" 
+                        <input type="range" id="rangeBottom" min="0" max="100" value="0" 
                                oninput="updateCropArea('bottom', this.value)"
                                class="w-full mb-1">
                         <input type="number" id="cropBottom" min="0" max="100" value="0" 
@@ -156,7 +156,7 @@
                     <!-- 좌측 -->
                     <div class="mb-4">
                         <label class="text-sm text-gray-600 mb-1 block">좌측 (%)</label>
-                        <input type="range" id="rangeLeft" min="0" max="50" value="0" 
+                        <input type="range" id="rangeLeft" min="0" max="100" value="0" 
                                oninput="updateCropArea('left', this.value)"
                                class="w-full mb-1">
                         <input type="number" id="cropLeft" min="0" max="100" value="0" 
@@ -167,7 +167,7 @@
                     <!-- 우측 -->
                     <div class="mb-4">
                         <label class="text-sm text-gray-600 mb-1 block">우측 (%)</label>
-                        <input type="range" id="rangeRight" min="0" max="50" value="0" 
+                        <input type="range" id="rangeRight" min="0" max="100" value="0" 
                                oninput="updateCropArea('right', this.value)"
                                class="w-full mb-1">
                         <input type="number" id="cropRight" min="0" max="100" value="0" 
@@ -229,25 +229,25 @@
                     <div class="space-y-3 mb-4">
                         <div>
                             <label class="text-sm text-gray-700 font-medium">상단 (%)</label>
-                            <input type="range" id="editRangeTop" min="0" max="50" value="0" 
+                            <input type="range" id="editRangeTop" min="0" max="100" value="0" 
                                    oninput="updateEditCropArea('top', this.value)"
                                    class="w-full">
                         </div>
                         <div>
                             <label class="text-sm text-gray-700 font-medium">하단 (%)</label>
-                            <input type="range" id="editRangeBottom" min="0" max="50" value="0" 
+                            <input type="range" id="editRangeBottom" min="0" max="100" value="0" 
                                    oninput="updateEditCropArea('bottom', this.value)"
                                    class="w-full">
                         </div>
                         <div>
                             <label class="text-sm text-gray-700 font-medium">좌측 (%)</label>
-                            <input type="range" id="editRangeLeft" min="0" max="50" value="0" 
+                            <input type="range" id="editRangeLeft" min="0" max="100" value="0" 
                                    oninput="updateEditCropArea('left', this.value)"
                                    class="w-full">
                         </div>
                         <div>
                             <label class="text-sm text-gray-700 font-medium">우측 (%)</label>
-                            <input type="range" id="editRangeRight" min="0" max="50" value="0" 
+                            <input type="range" id="editRangeRight" min="0" max="100" value="0" 
                                    oninput="updateEditCropArea('right', this.value)"
                                    class="w-full">
                         </div>
