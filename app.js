@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -425,6 +425,7 @@ function setupPreviewDrag() {
     const onPointerMove = (e) => {
         if (!e.isPrimary || (!isDragging && !isResizing)) return;
 
+        // 마지막 이벤트만 처리 (coalesced는 디버깅용으로만 사용)
         // 절대 좌표를 overlay 기준 상대 좌표로 변환
         const currentX = e.clientX - cachedRect.left;
         const currentY = e.clientY - cachedRect.top;
@@ -772,6 +773,7 @@ function renderCropOverlay() {
 function setupEditDrag() {
     const cropBox = document.getElementById('editCropBox');
     const resizeHandle = cropBox?.querySelector('.resize-handle');
+    const overlay = document.getElementById('cropOverlay');
     const img = document.getElementById('cropImage');
 
     if (!cropBox || !img) return;
