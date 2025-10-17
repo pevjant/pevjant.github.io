@@ -63,16 +63,41 @@ const state = {
     currentCropImage: null,
     currentPreset: null,
     croppedImages: [],
-    resultImage: null
+    resultImage: null,
+    customCropPresets: [] // 사용자 정의 프리셋 저장
 };
 
-// ===== 프리셋 정의 =====
-const presets = [
-    { id: 'youtube-sub', name: '유튜브 자막', y: 75, height: 25, color: '#FF0000' },
-    { id: 'bottom-30', name: '하단 30%', y: 70, height: 30, color: '#4A90E2' },
-    { id: 'bottom-20', name: '하단 20%', y: 80, height: 20, color: '#50C878' },
-    { id: 'full', name: '전체', y: 0, height: 100, color: '#9B59B6' }
-];
+// ===== 프리셋 로컬스토리지 관리 =====
+function loadCustomPresets() {
+    try {
+        const saved = localStorage.getItem('customCropPresets');
+        if (saved) {
+            state.customCropPresets = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error('프리셋 로드 실패:', e);
+    }
+}
+
+function saveCustomPreset(name, area) {
+    const preset = {
+        id: generateId(),
+        name: name,
+        area: { ...area },
+        createdAt: Date.now()
+    };
+    state.customCropPresets.push(preset);
+    localStorage.setItem('customCropPresets', JSON.stringify(state.customCropPresets));
+    return preset;
+}
+
+function deleteCustomPreset(id) {
+    state.customCropPresets = state.customCropPresets.filter(p => p.id !== id);
+    localStorage.setItem('customCropPresets', JSON.stringify(state.customCropPresets));
+}
+
+// ===== 초기 프리셋 로드 =====
+loadCustomPresets();
 
 // ===== 유틸리티 함수 =====
 function generateId() {
@@ -124,6 +149,12 @@ function switchTab(tab) {
     }
     // 합성 탭 진입시 업데이트
     if (tab === 'compose') {
+        // 크롭 편집기가 열려있으면 닫기
+        if (state.currentCropImage && !document.getElementById('cropEditor').classList.contains('hidden')) {
+            // 이미 열려있으면 유지
+        } else {
+            state.currentCropImage = null;
+        }
         updateComposeTab();
     }
 }
@@ -165,17 +196,8 @@ function renderImageGallery() {
             </div>
             ${img.cropped ? '<div class="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">✓</div>' : ''}
             <div class="p-2 bg-white">
-                <label class="flex items-center text-sm">
-                    <input type="checkbox" class="mr-2" ${state.selectedImages.includes(img.id) ? 'checked' : ''}
-                           onchange="toggleImageSelection('${img.id}')">
-                    선택
-                </label>
-                <button onclick="editImage('${img.id}')" 
-                        class="mt-1 w-full py-1 text-sm bg-blue-500 text-white rounded active:bg-blue-600">
-                    편집
-                </button>
                 <button onclick="deleteImage('${img.id}')" 
-                        class="mt-1 w-full py-1 text-sm bg-red-500 text-white rounded active:bg-red-600">
+                        class="w-full py-1 text-sm bg-red-500 text-white rounded active:bg-red-600">
                     삭제
                 </button>
             </div>
@@ -193,12 +215,6 @@ function toggleImageSelection(id) {
     renderImageGallery();
 }
 
-function editImage(id) {
-    state.currentCropImage = state.images.find(img => img.id === id);
-    switchTab('edit');
-    showCropEditor();
-}
-
 function deleteImage(id) {
     if (confirm('이미지를 삭제하시겠습니까?')) {
         state.images = state.images.filter(img => img.id !== id);
@@ -210,53 +226,189 @@ function deleteImage(id) {
 
 // ===== 편집 탭 =====
 function updateEditTab() {
-    // 프리셋 버튼 렌더링
-    const presetButtons = document.getElementById('presetButtons');
-    presetButtons.innerHTML = presets.map(preset => `
-        <button onclick="selectPreset('${preset.id}')" 
-                class="p-4 border-2 rounded-lg active:bg-gray-100 ${state.currentPreset?.id === preset.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}">
-            <div class="font-medium">${preset.name}</div>
-            <div class="text-sm text-gray-500">${preset.height}% 높이</div>
-            <div class="mt-2 h-2 rounded" style="background: ${preset.color}"></div>
-        </button>
+    // 대표 이미지 미리보기
+    const previewContainer = document.getElementById('cropPreview');
+    if (state.images.length > 0) {
+        const firstImage = state.images[0];
+        previewContainer.innerHTML = `
+            <div class="relative inline-block w-full">
+                <img src="${firstImage.dataUrl}" class="w-full rounded-lg shadow">
+                <div class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    대표 이미지 (1/${state.images.length})
+                </div>
+                <div id="previewCropOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+            </div>
+        `;
+        updatePreviewCropArea();
+    } else {
+        previewContainer.innerHTML = `
+            <div class="text-center py-12 text-gray-400">
+                <div class="text-4xl mb-2">🖼️</div>
+                <div>이미지를 먼저 선택해주세요</div>
+            </div>
+        `;
+    }
+
+    // 저장된 프리셋 목록
+    renderSavedPresets();
+
+    // 이미지 개수 업데이트
+    const imageCount = document.getElementById('imageCount');
+    imageCount.textContent = state.images.length;
+
+    // 크롭 버튼 활성화 상태
+    const cropButton = document.getElementById('batchCropButton');
+    cropButton.disabled = state.images.length === 0;
+}
+
+function renderSavedPresets() {
+    const container = document.getElementById('savedPresets');
+    if (state.customCropPresets.length === 0) {
+        container.innerHTML = '<div class="text-sm text-gray-400 text-center py-2">저장된 프리셋이 없습니다</div>';
+        return;
+    }
+
+    container.innerHTML = state.customCropPresets.map(preset => `
+        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border">
+            <button onclick="loadPreset('${preset.id}')" class="flex-1 text-left text-sm font-medium text-blue-600">
+                ${preset.name}
+            </button>
+            <button onclick="deletePreset('${preset.id}')" class="text-red-500 text-xs px-2 py-1 hover:bg-red-50 rounded">
+                삭제
+            </button>
+        </div>
     `).join('');
+}
 
-    // 선택 정보 업데이트
-    const selectedInfo = document.getElementById('selectedInfo');
-    const selectedCount = document.getElementById('selectedCount');
-    if (state.selectedImages.length > 0) {
-        selectedInfo.classList.remove('hidden');
-        selectedCount.textContent = state.selectedImages.length;
-    } else {
-        selectedInfo.classList.add('hidden');
-    }
-
-    // 뷰 업데이트
-    if (state.currentCropImage) {
-        showCropEditor();
-    } else if (state.selectedImages.length > 0 && state.currentPreset) {
-        showBatchCrop();
-    } else {
-        hideCropEditor();
-        hideBatchCrop();
+function loadPreset(id) {
+    const preset = state.customCropPresets.find(p => p.id === id);
+    if (preset) {
+        cropArea = { ...preset.area };
+        updateCropInputs();
+        updatePreviewCropArea();
+        showToast(`"${preset.name}" 프리셋 로드됨`);
     }
 }
 
-function selectPreset(id) {
-    state.currentPreset = presets.find(p => p.id === id);
-    updateEditTab();
+function deletePreset(id) {
+    const preset = state.customCropPresets.find(p => p.id === id);
+    if (preset && confirm(`"${preset.name}" 프리셋을 삭제하시겠습니까?`)) {
+        deleteCustomPreset(id);
+        renderSavedPresets();
+        showToast('프리셋 삭제됨');
+    }
+}
+
+function updateCropInputs() {
+    document.getElementById('cropTop').value = Math.round(cropArea.y);
+    document.getElementById('cropBottom').value = Math.round(100 - cropArea.y - cropArea.height);
+    document.getElementById('cropLeft').value = Math.round(cropArea.x);
+    document.getElementById('cropRight').value = Math.round(100 - cropArea.x - cropArea.width);
     
-    if (state.selectedImages.length > 0) {
-        showBatchCrop();
+    document.getElementById('rangeTop').value = Math.round(cropArea.y);
+    document.getElementById('rangeBottom').value = Math.round(100 - cropArea.y - cropArea.height);
+    document.getElementById('rangeLeft').value = Math.round(cropArea.x);
+    document.getElementById('rangeRight').value = Math.round(100 - cropArea.x - cropArea.width);
+}
+
+function updatePreviewCropArea() {
+    const overlay = document.getElementById('previewCropOverlay');
+    if (!overlay) return;
+    
+    overlay.innerHTML = `
+        <div class="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10" style="
+            left: ${cropArea.x}%;
+            top: ${cropArea.y}%;
+            width: ${cropArea.width}%;
+            height: ${cropArea.height}%;
+        "></div>
+    `;
+}
+
+function updateCropArea(side, value) {
+    const val = parseInt(value) || 0;
+    
+    switch(side) {
+        case 'top':
+            cropArea.y = val;
+            cropArea.height = Math.max(1, 100 - val - (100 - cropArea.y - cropArea.height));
+            break;
+        case 'bottom':
+            cropArea.height = Math.max(1, 100 - cropArea.y - val);
+            break;
+        case 'left':
+            cropArea.x = val;
+            cropArea.width = Math.max(1, 100 - val - (100 - cropArea.x - cropArea.width));
+            break;
+        case 'right':
+            cropArea.width = Math.max(1, 100 - cropArea.x - val);
+            break;
+    }
+    
+    updateCropInputs();
+    updatePreviewCropArea();
+}
+
+function saveCurrentPreset() {
+    const name = prompt('프리셋 이름을 입력하세요:');
+    if (name && name.trim()) {
+        saveCustomPreset(name.trim(), cropArea);
+        renderSavedPresets();
+        showToast('프리셋 저장됨 ✓');
     }
 }
 
-// ===== 크롭 편집기 =====
-let cropArea = { x: 0, y: 75, width: 100, height: 25 };
+// ===== 배치 크롭 =====
+async function startBatchCrop() {
+    if (state.images.length === 0) {
+        showToast('이미지를 먼저 선택해주세요');
+        return;
+    }
+
+    const button = document.getElementById('batchCropButton');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    button.disabled = true;
+    progressBar.classList.remove('hidden');
+
+    const total = state.images.length;
+    const area = { ...cropArea }; // 현재 크롭 영역 사용
+
+    for (let i = 0; i < total; i++) {
+        const img = state.images[i];
+        
+        const croppedDataUrl = await cropImage(img.dataUrl, area);
+        img.cropped = true;
+        img.cropData = {
+            dataUrl: croppedDataUrl,
+            area: { ...area }
+        };
+        img.comment = ''; // 초기 코멘트 비움
+
+        const progress = ((i + 1) / total) * 100;
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `${Math.round(progress)}%`;
+    }
+
+    showToast(`${total}개 이미지 크롭 완료`);
+    button.disabled = false;
+    progressBar.classList.add('hidden');
+    renderImageGallery();
+    
+    // 합성 탭으로 자동 이동
+    switchTab('compose');
+}
+
+// ===== 크롭 편집기 (합성 탭에서 개별 수정용) =====
+let cropArea = { x: 0, y: 0, width: 100, height: 25 }; // 기본값: 상단 25%
 
 function showCropEditor() {
     document.getElementById('cropEditor').classList.remove('hidden');
-    document.getElementById('batchCrop').classList.add('hidden');
+    
+    // 페이지 스크롤 방지
+    document.body.classList.add('crop-editing');
     
     const img = state.currentCropImage;
     const cropImage = document.getElementById('cropImage');
@@ -266,86 +418,78 @@ function showCropEditor() {
     if (img.cropData) {
         cropArea = { ...img.cropData.area };
         document.getElementById('commentInput').value = img.comment || '';
-    } else if (state.currentPreset) {
-        cropArea = { x: 0, y: state.currentPreset.y, width: 100, height: state.currentPreset.height };
     }
 
     cropImage.onload = () => {
+        updateEditCropInputs();
         renderCropOverlay();
     };
+}
+
+function updateEditCropInputs() {
+    const top = Math.round(cropArea.y);
+    const bottom = Math.round(100 - cropArea.y - cropArea.height);
+    const left = Math.round(cropArea.x);
+    const right = Math.round(100 - cropArea.x - cropArea.width);
+    
+    document.getElementById('editRangeTop').value = top;
+    document.getElementById('editRangeBottom').value = bottom;
+    document.getElementById('editRangeLeft').value = left;
+    document.getElementById('editRangeRight').value = right;
+}
+
+function updateEditCropArea(side, value) {
+    const val = parseInt(value) || 0;
+    
+    switch(side) {
+        case 'top':
+            const oldBottom = 100 - cropArea.y - cropArea.height;
+            cropArea.y = val;
+            cropArea.height = Math.max(1, 100 - val - oldBottom);
+            break;
+        case 'bottom':
+            cropArea.height = Math.max(1, 100 - cropArea.y - val);
+            break;
+        case 'left':
+            const oldRight = 100 - cropArea.x - cropArea.width;
+            cropArea.x = val;
+            cropArea.width = Math.max(1, 100 - val - oldRight);
+            break;
+        case 'right':
+            cropArea.width = Math.max(1, 100 - cropArea.x - val);
+            break;
+    }
+    
+    updateEditCropInputs();
+    renderCropOverlay();
 }
 
 function hideCropEditor() {
     document.getElementById('cropEditor').classList.add('hidden');
     state.currentCropImage = null;
+    
+    // 페이지 스크롤 복원
+    document.body.classList.remove('crop-editing');
 }
 
 function cancelCrop() {
     hideCropEditor();
-    switchTab('input');
+    updateComposeTab(); // 합성 탭 새로고침
 }
 
 function renderCropOverlay() {
     const overlay = document.getElementById('cropOverlay');
+    if (!overlay) return;
     
+    // 간단한 미리보기만 표시 (드래그 불필요)
     overlay.innerHTML = `
-        <div class="crop-area pointer-events-auto" style="
+        <div class="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none" style="
             left: ${cropArea.x}%;
             top: ${cropArea.y}%;
             width: ${cropArea.width}%;
             height: ${cropArea.height}%;
-        ">
-            <div class="resize-handle handle-se"></div>
-        </div>
+        "></div>
     `;
-
-    // 드래그 이벤트 (간단한 구현 - 이동만)
-    const cropBox = overlay.querySelector('.crop-area');
-    const img = document.getElementById('cropImage');
-    let isDragging = false;
-    let startX, startY;
-
-    cropBox.addEventListener('mousedown', (e) => {
-        if (e.target === cropBox) {
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            e.preventDefault();
-        }
-    });
-
-    cropBox.addEventListener('touchstart', (e) => {
-        if (e.target === cropBox) {
-            isDragging = true;
-            const touch = e.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
-            e.preventDefault();
-        }
-    });
-
-    const handleMove = (clientX, clientY) => {
-        if (!isDragging) return;
-        const dx = ((clientX - startX) / img.offsetWidth) * 100;
-        const dy = ((clientY - startY) / img.offsetHeight) * 100;
-        
-        cropArea.x = Math.max(0, Math.min(100 - cropArea.width, cropArea.x + dx));
-        cropArea.y = Math.max(0, Math.min(100 - cropArea.height, cropArea.y + dy));
-        
-        startX = clientX;
-        startY = clientY;
-        renderCropOverlay();
-    };
-
-    document.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
-    document.addEventListener('touchmove', (e) => {
-        const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
-    });
-
-    const stopDrag = () => { isDragging = false; };
-    document.addEventListener('mouseup', stopDrag);
-    document.addEventListener('touchend', stopDrag);
 }
 
 async function applyCrop() {
@@ -364,65 +508,10 @@ async function applyCrop() {
     showToast('크롭 적용됨');
     hideCropEditor();
     renderImageGallery();
-    switchTab('input');
+    updateComposeTab(); // 합성 탭 새로고침
 }
 
-// ===== 배치 크롭 =====
-function showBatchCrop() {
-    document.getElementById('batchCrop').classList.remove('hidden');
-    document.getElementById('cropEditor').classList.add('hidden');
-}
-
-function hideBatchCrop() {
-    document.getElementById('batchCrop').classList.add('hidden');
-}
-
-function cancelBatch() {
-    state.selectedImages = [];
-    renderImageGallery();
-    updateEditTab();
-}
-
-async function startBatchCrop() {
-    if (!state.currentPreset) {
-        showToast('프리셋을 선택해주세요');
-        return;
-    }
-
-    const button = document.getElementById('batchButton');
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-
-    button.disabled = true;
-    progressBar.classList.remove('hidden');
-
-    const total = state.selectedImages.length;
-    const area = { x: 0, y: state.currentPreset.y, width: 100, height: state.currentPreset.height };
-
-    for (let i = 0; i < total; i++) {
-        const id = state.selectedImages[i];
-        const img = state.images.find(im => im.id === id);
-        
-        const croppedDataUrl = await cropImage(img.dataUrl, area);
-        img.cropped = true;
-        img.cropData = {
-            dataUrl: croppedDataUrl,
-            area: { ...area }
-        };
-
-        const progress = ((i + 1) / total) * 100;
-        progressFill.style.width = `${progress}%`;
-        progressText.textContent = `${Math.round(progress)}%`;
-    }
-
-    showToast(`${total}개 이미지 크롭 완료`);
-    state.selectedImages = [];
-    button.disabled = false;
-    progressBar.classList.add('hidden');
-    renderImageGallery();
-    hideBatchCrop();
-}
+// ===== 배치 크롭 제거 (더 이상 사용 안함) =====
 
 // ===== 크롭 함수 =====
 async function cropImage(dataUrl, area) {
@@ -451,21 +540,47 @@ async function cropImage(dataUrl, area) {
 function updateComposeTab() {
     const croppedImages = state.images.filter(img => img.cropped);
     const count = document.getElementById('croppedCount');
-    const list = document.getElementById('croppedList');
+    const preview = document.getElementById('croppedPreview');
     const composeButton = document.getElementById('composeButton');
 
     count.textContent = croppedImages.length;
     composeButton.disabled = croppedImages.length === 0;
 
-    list.innerHTML = croppedImages.map((img, idx) => `
-        <div class="flex items-center gap-3 p-2 border rounded-lg">
-            <div class="text-lg font-bold text-gray-400">${idx + 1}</div>
-            <img src="${img.cropData.dataUrl}" class="w-16 h-16 object-cover rounded">
-            <div class="flex-1 text-sm">
-                ${img.comment ? `<div class="text-gray-700">"${img.comment}"</div>` : '<div class="text-gray-400">코멘트 없음</div>'}
+    // 크롭 편집기가 열려있으면 숨김
+    if (croppedImages.length === 0 || state.currentCropImage) {
+        preview.innerHTML = '';
+        return;
+    }
+
+    // 크롭된 이미지들을 세로로 미리보기
+    preview.innerHTML = croppedImages.map((img, idx) => `
+        <div class="border rounded-lg overflow-hidden mb-3">
+            <div class="relative">
+                <img src="${img.cropData.dataUrl}" class="w-full">
+                <div class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    ${idx + 1}
+                </div>
+            </div>
+            <div class="p-3 bg-gray-50">
+                ${img.comment ? `
+                    <div class="text-sm text-gray-700 mb-2 p-2 bg-white rounded border">
+                        "${img.comment}"
+                    </div>
+                ` : `
+                    <div class="text-sm text-gray-400 mb-2 italic">코멘트 없음</div>
+                `}
+                <button onclick="editCroppedImage('${img.id}')" 
+                        class="w-full py-2 text-sm bg-blue-500 text-white rounded active:bg-blue-600">
+                    ✏️ 수정
+                </button>
             </div>
         </div>
     `).join('');
+}
+
+function editCroppedImage(id) {
+    state.currentCropImage = state.images.find(img => img.id === id);
+    showCropEditor();
 }
 
 async function composeImages() {
