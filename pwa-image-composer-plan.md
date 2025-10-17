@@ -52,6 +52,7 @@ npm install zustand               # 상태 관리
 
 ## 📐 데이터 구조
 
+{% raw %}
 ```typescript
 // 크롭 프리셋
 interface CropPreset {
@@ -104,6 +105,7 @@ interface CompositeSettings {
   };
 }
 ```
+{% endraw %}
 
 ---
 
