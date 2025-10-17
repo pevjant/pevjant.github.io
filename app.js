@@ -1,3 +1,6 @@
+// ===== 앱 버전 =====
+const APP_VERSION = '2.0.0';
+
 // ===== Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
@@ -8,6 +11,8 @@ if ('serviceWorker' in navigator) {
 // ===== 공유 받기 처리 =====
 // ===== 공유 받기 처리 =====
 window.addEventListener('DOMContentLoaded', async () => {
+    // 버전 표시
+    document.getElementById('appVersion').textContent = `v${APP_VERSION}`;
     const url = new URL(window.location.href);
     
     if (url.searchParams.get('shared') === '1') {
@@ -561,21 +566,27 @@ function updateComposeTab() {
                     ${idx + 1}
                 </div>
             </div>
-            <div class="p-3 bg-gray-50">
-                ${img.comment ? `
-                    <div class="text-sm text-gray-700 mb-2 p-2 bg-white rounded border">
-                        "${img.comment}"
-                    </div>
-                ` : `
-                    <div class="text-sm text-gray-400 mb-2 italic">코멘트 없음</div>
-                `}
+            <div class="p-3 bg-gray-50 space-y-2">
+                <input type="text" 
+                       id="comment-${img.id}" 
+                       value="${img.comment || ''}" 
+                       placeholder="코멘트 입력..."
+                       oninput="updateComment('${img.id}', this.value)"
+                       class="w-full p-2 text-sm border rounded-lg focus:border-blue-500 focus:outline-none">
                 <button onclick="editCroppedImage('${img.id}')" 
                         class="w-full py-2 text-sm bg-blue-500 text-white rounded active:bg-blue-600">
-                    ✏️ 수정
+                    ✏️ 크롭 영역 수정
                 </button>
             </div>
         </div>
     `).join('');
+}
+
+function updateComment(id, comment) {
+    const img = state.images.find(i => i.id === id);
+    if (img) {
+        img.comment = comment;
+    }
 }
 
 function editCroppedImage(id) {
