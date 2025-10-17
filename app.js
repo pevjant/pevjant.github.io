@@ -6,6 +6,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ===== 공유 받기 처리 =====
+// ===== 공유 받기 처리 =====
 window.addEventListener('DOMContentLoaded', async () => {
     const url = new URL(window.location.href);
     
@@ -40,17 +41,17 @@ window.addEventListener('DOMContentLoaded', async () => {
                                 reader.readAsDataURL(blob);
                             }
                         } catch (err) {
-                            console.error('File load error:', err);
+                            console.error('파일 로드 실패:', err);
                         }
                     }
-                    showToast(`${data.files.length}개 이미지 받음`);
+                    showToast(`${data.files.length}개 이미지 받음 📥`);
                 }
                 
                 await cache.delete('/shared-data/latest');
                 window.history.replaceState({}, '', '/app.html');
             }
         } catch (error) {
-            console.error('Share load failed:', error);
+            console.error('공유 로드 실패:', error);
         }
     }
 });
