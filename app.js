@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 
 // ===== Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
@@ -361,28 +361,17 @@ function setupPreviewDrag() {
     let isResizing = false;
     let startX, startY;
     let startCropArea = null;
-    let animationFrameId = null;
-    let pendingUpdate = false;
+    let cachedRect = null;
+    let rafId = null;
     
-    // 스타일만 업데이트 (성능 최적화)
-    const updateCropBoxStyle = () => {
+    // 렌더링만 RAF로 throttle
+    const render = () => {
         cropBox.style.left = cropArea.x + '%';
         cropBox.style.top = cropArea.y + '%';
         cropBox.style.width = cropArea.width + '%';
         cropBox.style.height = cropArea.height + '%';
         updateCropInputs();
-        pendingUpdate = false;
-    };
-    
-    const scheduleUpdate = () => {
-        if (pendingUpdate) return;
-        pendingUpdate = true;
-        
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-        }
-        
-        animationFrameId = requestAnimationFrame(updateCropBoxStyle);
+        rafId = null;
     };
     
     // 이동 시작
@@ -393,6 +382,7 @@ function setupPreviewDrag() {
             startX = point.clientX;
             startY = point.clientY;
             startCropArea = { ...cropArea };
+            cachedRect = img.getBoundingClientRect();
             e.preventDefault();
             e.stopPropagation();
         }
@@ -405,6 +395,7 @@ function setupPreviewDrag() {
         startX = point.clientX;
         startY = point.clientY;
         startCropArea = { ...cropArea };
+        cachedRect = img.getBoundingClientRect();
         e.preventDefault();
         e.stopPropagation();
     };
@@ -417,23 +408,20 @@ function setupPreviewDrag() {
         e.stopPropagation();
         
         const point = e.touches ? e.touches[0] : e;
-        const rect = img.getBoundingClientRect();
-        const dx = ((point.clientX - startX) / rect.width) * 100;
-        const dy = ((point.clientY - startY) / rect.height) * 100;
+        const dx = ((point.clientX - startX) / cachedRect.width) * 100;
+        const dy = ((point.clientY - startY) / cachedRect.height) * 100;
         
         if (isDragging) {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
             cropArea.y = Math.max(0, Math.min(100 - startCropArea.height, startCropArea.y + dy));
-            cropArea.width = startCropArea.width;
-            cropArea.height = startCropArea.height;
         } else if (isResizing) {
             cropArea.width = Math.max(10, Math.min(100 - startCropArea.x, startCropArea.width + dx));
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
-            cropArea.x = startCropArea.x;
-            cropArea.y = startCropArea.y;
         }
         
-        scheduleUpdate();
+        if (!rafId) {
+            rafId = requestAnimationFrame(render);
+        }
     };
     
     // 종료
@@ -461,8 +449,8 @@ function setupPreviewDrag() {
     
     // cleanup 함수
     previewDragCleanup = () => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
+        if (rafId) {
+            cancelAnimationFrame(rafId);
         }
         cropBox.removeEventListener('mousedown', startMove);
         cropBox.removeEventListener('touchstart', startMove);
@@ -674,28 +662,17 @@ function setupEditDrag() {
     let isResizing = false;
     let startX, startY;
     let startCropArea = null;
-    let animationFrameId = null;
-    let pendingUpdate = false;
+    let cachedRect = null;
+    let rafId = null;
     
-    // 스타일만 업데이트 (성능 최적화)
-    const updateCropBoxStyle = () => {
+    // 렌더링만 RAF로 throttle
+    const render = () => {
         cropBox.style.left = cropArea.x + '%';
         cropBox.style.top = cropArea.y + '%';
         cropBox.style.width = cropArea.width + '%';
         cropBox.style.height = cropArea.height + '%';
         updateEditCropInputs();
-        pendingUpdate = false;
-    };
-    
-    const scheduleUpdate = () => {
-        if (pendingUpdate) return;
-        pendingUpdate = true;
-        
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-        }
-        
-        animationFrameId = requestAnimationFrame(updateCropBoxStyle);
+        rafId = null;
     };
     
     // 이동 시작
@@ -706,6 +683,7 @@ function setupEditDrag() {
             startX = point.clientX;
             startY = point.clientY;
             startCropArea = { ...cropArea };
+            cachedRect = img.getBoundingClientRect();
             e.preventDefault();
             e.stopPropagation();
         }
@@ -718,6 +696,7 @@ function setupEditDrag() {
         startX = point.clientX;
         startY = point.clientY;
         startCropArea = { ...cropArea };
+        cachedRect = img.getBoundingClientRect();
         e.preventDefault();
         e.stopPropagation();
     };
@@ -730,23 +709,20 @@ function setupEditDrag() {
         e.stopPropagation();
         
         const point = e.touches ? e.touches[0] : e;
-        const rect = img.getBoundingClientRect();
-        const dx = ((point.clientX - startX) / rect.width) * 100;
-        const dy = ((point.clientY - startY) / rect.height) * 100;
+        const dx = ((point.clientX - startX) / cachedRect.width) * 100;
+        const dy = ((point.clientY - startY) / cachedRect.height) * 100;
         
         if (isDragging) {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
             cropArea.y = Math.max(0, Math.min(100 - startCropArea.height, startCropArea.y + dy));
-            cropArea.width = startCropArea.width;
-            cropArea.height = startCropArea.height;
         } else if (isResizing) {
             cropArea.width = Math.max(10, Math.min(100 - startCropArea.x, startCropArea.width + dx));
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
-            cropArea.x = startCropArea.x;
-            cropArea.y = startCropArea.y;
         }
         
-        scheduleUpdate();
+        if (!rafId) {
+            rafId = requestAnimationFrame(render);
+        }
     };
     
     // 종료
@@ -774,8 +750,8 @@ function setupEditDrag() {
     
     // cleanup 함수
     editDragCleanup = () => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
+        if (rafId) {
+            cancelAnimationFrame(rafId);
         }
         cropBox.removeEventListener('mousedown', startMove);
         cropBox.removeEventListener('touchstart', startMove);
