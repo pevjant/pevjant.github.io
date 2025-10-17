@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -400,12 +400,14 @@ function setupPreviewDrag() {
         lastCoalesced: 0,
     };
 
-    const render = (finalize = false) => {
+    const applyBoxStyles = () => {
         cropBox.style.left = cropArea.x + '%';
         cropBox.style.top = cropArea.y + '%';
         cropBox.style.width = cropArea.width + '%';
         cropBox.style.height = cropArea.height + '%';
-
+    };
+    const render = (finalize = false) => {
+        // 입력 값만 간헐 업데이트 (스타일은 즉시 반영됨)
         const now = performance.now();
         if (finalize || now - lastInputUpdate > 100) {
             updateCropInputs();
@@ -434,6 +436,9 @@ function setupPreviewDrag() {
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
 
+        // 스타일은 즉시 반영해 첫 프레임 지연 제거
+        applyBoxStyles();
+
         // 디버깅: 이동 이벤트 통계
         dbg.moveCount++;
         const now = performance.now();
@@ -453,6 +458,7 @@ function setupPreviewDrag() {
             dbg.lastLogTs = now;
         }
 
+        // 입력 UI만 가볍게 스로틀 반영
         if (!rafId) rafId = requestAnimationFrame(() => render(false));
     };
 
@@ -491,9 +497,16 @@ function setupPreviewDrag() {
         cachedRect = img.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
-        dbg.type = 'move';
-        dbg.startTs = performance.now();
-        dbg.startScrollY = window.scrollY;
+    // 디버그 카운터 초기화
+    dbg.type = 'move';
+    dbg.startTs = performance.now();
+    dbg.firstMoveTs = 0;
+    dbg.lastMoveTs = 0;
+    dbg.lastRenderTs = 0;
+    dbg.moveCount = 0;
+    dbg.renderCount = 0;
+    dbg.lastLogTs = 0;
+    dbg.startScrollY = window.scrollY;
         dlog(`${dbg.scope}:down`, {
             type: dbg.type,
             pid: e.pointerId,
@@ -516,9 +529,16 @@ function setupPreviewDrag() {
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
-        dbg.type = 'resize';
-        dbg.startTs = performance.now();
-        dbg.startScrollY = window.scrollY;
+    // 디버그 카운터 초기화
+    dbg.type = 'resize';
+    dbg.startTs = performance.now();
+    dbg.firstMoveTs = 0;
+    dbg.lastMoveTs = 0;
+    dbg.lastRenderTs = 0;
+    dbg.moveCount = 0;
+    dbg.renderCount = 0;
+    dbg.lastLogTs = 0;
+    dbg.startScrollY = window.scrollY;
         dlog(`${dbg.scope}:down`, {
             type: dbg.type,
             pid: e.pointerId,
@@ -771,12 +791,13 @@ function setupEditDrag() {
         lastCoalesced: 0,
     };
 
-    const render = (finalize = false) => {
+    const applyBoxStyles = () => {
         cropBox.style.left = cropArea.x + '%';
         cropBox.style.top = cropArea.y + '%';
         cropBox.style.width = cropArea.width + '%';
         cropBox.style.height = cropArea.height + '%';
-
+    };
+    const render = (finalize = false) => {
         const now = performance.now();
         if (finalize || now - lastInputUpdate > 100) {
             updateEditCropInputs();
@@ -804,6 +825,9 @@ function setupEditDrag() {
             cropArea.width = Math.max(10, Math.min(100 - startCropArea.x, startCropArea.width + dx));
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
+
+        // 스타일 즉시 반영
+        applyBoxStyles();
 
         // 디버깅: 이동 이벤트 통계
         dbg.moveCount++;
@@ -861,9 +885,16 @@ function setupEditDrag() {
         cachedRect = img.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
-        dbg.type = 'move';
-        dbg.startTs = performance.now();
-        dbg.startScrollY = window.scrollY;
+    // 디버그 카운터 초기화
+    dbg.type = 'move';
+    dbg.startTs = performance.now();
+    dbg.firstMoveTs = 0;
+    dbg.lastMoveTs = 0;
+    dbg.lastRenderTs = 0;
+    dbg.moveCount = 0;
+    dbg.renderCount = 0;
+    dbg.lastLogTs = 0;
+    dbg.startScrollY = window.scrollY;
         dlog(`${dbg.scope}:down`, {
             type: dbg.type,
             pid: e.pointerId,
@@ -886,9 +917,16 @@ function setupEditDrag() {
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
-        dbg.type = 'resize';
-        dbg.startTs = performance.now();
-        dbg.startScrollY = window.scrollY;
+    // 디버그 카운터 초기화
+    dbg.type = 'resize';
+    dbg.startTs = performance.now();
+    dbg.firstMoveTs = 0;
+    dbg.lastMoveTs = 0;
+    dbg.lastRenderTs = 0;
+    dbg.moveCount = 0;
+    dbg.renderCount = 0;
+    dbg.lastLogTs = 0;
+    dbg.startScrollY = window.scrollY;
         dlog(`${dbg.scope}:down`, {
             type: dbg.type,
             pid: e.pointerId,
