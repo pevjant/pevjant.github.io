@@ -1,8 +1,37 @@
 // ===== Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('SW registered'))
-        .catch(err => console.error('SW error:', err));
+        .then(reg => {
+            console.log('✅ SW registered');
+            
+            // 업데이트 체크
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                console.log('🔄 새로운 Service Worker 발견');
+                
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('🆕 새 버전 사용 가능 - 페이지를 새로고침하세요');
+                        // 자동으로 새 버전 활성화
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                });
+            });
+            
+            // 페이지 로드 시 업데이트 확인
+            reg.update();
+        })
+        .catch(err => console.error('❌ SW error:', err));
+    
+    // Service Worker가 제어권을 가져가면 페이지 새로고침
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            refreshing = true;
+            console.log('🔄 Service Worker 업데이트됨 - 페이지 새로고침');
+            window.location.reload();
+        }
+    });
 }
 
 // ===== 공유 받기 처리 =====

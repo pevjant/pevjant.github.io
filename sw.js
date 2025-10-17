@@ -26,6 +26,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('🔧 Service Worker 활성화 중...');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
@@ -39,8 +40,19 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('✅ 모든 클라이언트에 대해 활성화');
+      return self.clients.claim();
+    })
   );
+});
+
+// SKIP_WAITING 메시지 처리
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⚡ SKIP_WAITING 메시지 받음 - 즉시 활성화');
+    self.skipWaiting();
+  }
 });
 
 // Fetch 처리
