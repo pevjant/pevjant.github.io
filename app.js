@@ -231,6 +231,12 @@ function deleteImage(id) {
 
 // ===== 편집 탭 =====
 function updateEditTab() {
+    // 기존 드래그 이벤트 정리
+    if (previewDragCleanup) {
+        previewDragCleanup();
+        previewDragCleanup = null;
+    }
+    
     // 대표 이미지 미리보기
     const previewContainer = document.getElementById('cropPreview');
     if (state.images.length > 0) {
@@ -316,18 +322,147 @@ function updateCropInputs() {
     document.getElementById('rangeRight').value = Math.round(100 - cropArea.x - cropArea.width);
 }
 
+// 드래그 이벤트 정리용
+let previewDragCleanup = null;
+
 function updatePreviewCropArea() {
     const overlay = document.getElementById('previewCropOverlay');
     if (!overlay) return;
     
+    // 기존 이벤트 정리
+    if (previewDragCleanup) {
+        previewDragCleanup();
+        previewDragCleanup = null;
+    }
+    
     overlay.innerHTML = `
-        <div class="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10" style="
+        <div class="crop-area pointer-events-auto" id="previewCropBox" style="
             left: ${cropArea.x}%;
             top: ${cropArea.y}%;
             width: ${cropArea.width}%;
             height: ${cropArea.height}%;
-        "></div>
+        ">
+            <div class="resize-handle handle-se"></div>
+        </div>
     `;
+    
+    setupPreviewDrag();
+}
+
+function setupPreviewDrag() {
+    const cropBox = document.getElementById('previewCropBox');
+    const resizeHandle = cropBox?.querySelector('.resize-handle');
+    const overlay = document.getElementById('previewCropOverlay');
+    const img = overlay?.previousElementSibling;
+    
+    if (!cropBox || !img) return;
+    
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY;
+    let animationFrameId = null;
+    
+    // 스타일만 업데이트 (성능 최적화)
+    const updateCropBoxStyle = () => {
+        if (animationFrameId) return;
+        
+        animationFrameId = requestAnimationFrame(() => {
+            cropBox.style.left = cropArea.x + '%';
+            cropBox.style.top = cropArea.y + '%';
+            cropBox.style.width = cropArea.width + '%';
+            cropBox.style.height = cropArea.height + '%';
+            animationFrameId = null;
+        });
+    };
+    
+    // 이동 시작
+    const startMove = (e) => {
+        if (e.target === cropBox) {
+            isDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            startX = point.clientX;
+            startY = point.clientY;
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+    
+    // 리사이즈 시작
+    const startResize = (e) => {
+        isResizing = true;
+        const point = e.touches ? e.touches[0] : e;
+        startX = point.clientX;
+        startY = point.clientY;
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    
+    // 이동/리사이즈 처리
+    const handleMove = (e) => {
+        if (!isDragging && !isResizing) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const point = e.touches ? e.touches[0] : e;
+        const rect = img.getBoundingClientRect();
+        const dx = ((point.clientX - startX) / rect.width) * 100;
+        const dy = ((point.clientY - startY) / rect.height) * 100;
+        
+        if (isDragging) {
+            cropArea.x = Math.max(0, Math.min(100 - cropArea.width, cropArea.x + dx));
+            cropArea.y = Math.max(0, Math.min(100 - cropArea.height, cropArea.y + dy));
+        } else if (isResizing) {
+            cropArea.width = Math.max(10, Math.min(100 - cropArea.x, cropArea.width + dx));
+            cropArea.height = Math.max(10, Math.min(100 - cropArea.y, cropArea.height + dy));
+        }
+        
+        startX = point.clientX;
+        startY = point.clientY;
+        
+        updateCropBoxStyle();
+        updateCropInputs();
+    };
+    
+    // 종료
+    const stopDrag = () => {
+        isDragging = false;
+        isResizing = false;
+    };
+    
+    // 이벤트 리스너 추가
+    cropBox.addEventListener('mousedown', startMove);
+    cropBox.addEventListener('touchstart', startMove, { passive: false });
+    
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', startResize);
+        resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+    }
+    
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchend', stopDrag);
+    document.addEventListener('touchcancel', stopDrag);
+    
+    // cleanup 함수
+    previewDragCleanup = () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        cropBox.removeEventListener('mousedown', startMove);
+        cropBox.removeEventListener('touchstart', startMove);
+        if (resizeHandle) {
+            resizeHandle.removeEventListener('mousedown', startResize);
+            resizeHandle.removeEventListener('touchstart', startResize);
+        }
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchend', stopDrag);
+        document.removeEventListener('touchcancel', stopDrag);
+    };
 }
 
 function updateCropArea(side, value) {
@@ -475,6 +610,12 @@ function hideCropEditor() {
     
     // 페이지 스크롤 복원
     document.body.classList.remove('crop-editing');
+    
+    // 드래그 이벤트 정리
+    if (editDragCleanup) {
+        editDragCleanup();
+        editDragCleanup = null;
+    }
 }
 
 function cancelCrop() {
@@ -482,19 +623,146 @@ function cancelCrop() {
     updateComposeTab(); // 합성 탭 새로고침
 }
 
+// 합성 탭 드래그 이벤트 정리용
+let editDragCleanup = null;
+
 function renderCropOverlay() {
     const overlay = document.getElementById('cropOverlay');
     if (!overlay) return;
     
-    // 간단한 미리보기만 표시 (드래그 불필요)
+    // 기존 이벤트 정리
+    if (editDragCleanup) {
+        editDragCleanup();
+        editDragCleanup = null;
+    }
+    
     overlay.innerHTML = `
-        <div class="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none" style="
+        <div class="crop-area pointer-events-auto" id="editCropBox" style="
             left: ${cropArea.x}%;
             top: ${cropArea.y}%;
             width: ${cropArea.width}%;
             height: ${cropArea.height}%;
-        "></div>
+        ">
+            <div class="resize-handle handle-se"></div>
+        </div>
     `;
+    
+    setupEditDrag();
+}
+
+function setupEditDrag() {
+    const cropBox = document.getElementById('editCropBox');
+    const resizeHandle = cropBox?.querySelector('.resize-handle');
+    const img = document.getElementById('cropImage');
+    
+    if (!cropBox || !img) return;
+    
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY;
+    let animationFrameId = null;
+    
+    // 스타일만 업데이트 (성능 최적화)
+    const updateCropBoxStyle = () => {
+        if (animationFrameId) return;
+        
+        animationFrameId = requestAnimationFrame(() => {
+            cropBox.style.left = cropArea.x + '%';
+            cropBox.style.top = cropArea.y + '%';
+            cropBox.style.width = cropArea.width + '%';
+            cropBox.style.height = cropArea.height + '%';
+            animationFrameId = null;
+        });
+    };
+    
+    // 이동 시작
+    const startMove = (e) => {
+        if (e.target === cropBox) {
+            isDragging = true;
+            const point = e.touches ? e.touches[0] : e;
+            startX = point.clientX;
+            startY = point.clientY;
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+    
+    // 리사이즈 시작
+    const startResize = (e) => {
+        isResizing = true;
+        const point = e.touches ? e.touches[0] : e;
+        startX = point.clientX;
+        startY = point.clientY;
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    
+    // 이동/리사이즈 처리
+    const handleMove = (e) => {
+        if (!isDragging && !isResizing) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const point = e.touches ? e.touches[0] : e;
+        const rect = img.getBoundingClientRect();
+        const dx = ((point.clientX - startX) / rect.width) * 100;
+        const dy = ((point.clientY - startY) / rect.height) * 100;
+        
+        if (isDragging) {
+            cropArea.x = Math.max(0, Math.min(100 - cropArea.width, cropArea.x + dx));
+            cropArea.y = Math.max(0, Math.min(100 - cropArea.height, cropArea.y + dy));
+        } else if (isResizing) {
+            cropArea.width = Math.max(10, Math.min(100 - cropArea.x, cropArea.width + dx));
+            cropArea.height = Math.max(10, Math.min(100 - cropArea.y, cropArea.height + dy));
+        }
+        
+        startX = point.clientX;
+        startY = point.clientY;
+        
+        updateCropBoxStyle();
+        updateEditCropInputs();
+    };
+    
+    // 종료
+    const stopDrag = () => {
+        isDragging = false;
+        isResizing = false;
+    };
+    
+    // 이벤트 리스너 추가
+    cropBox.addEventListener('mousedown', startMove);
+    cropBox.addEventListener('touchstart', startMove, { passive: false });
+    
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', startResize);
+        resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+    }
+    
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchend', stopDrag);
+    document.addEventListener('touchcancel', stopDrag);
+    
+    // cleanup 함수
+    editDragCleanup = () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        cropBox.removeEventListener('mousedown', startMove);
+        cropBox.removeEventListener('touchstart', startMove);
+        if (resizeHandle) {
+            resizeHandle.removeEventListener('mousedown', startResize);
+            resizeHandle.removeEventListener('touchstart', startResize);
+        }
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchend', stopDrag);
+        document.removeEventListener('touchcancel', stopDrag);
+    };
 }
 
 async function applyCrop() {
