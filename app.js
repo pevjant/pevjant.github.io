@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 
 // ===== Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
