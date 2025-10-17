@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.8.1';
+const APP_VERSION = '2.9.0';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -425,8 +425,13 @@ function setupPreviewDrag() {
     const onPointerMove = (e) => {
         if (!e.isPrimary || (!isDragging && !isResizing)) return;
 
-        const dx = ((e.clientX - startX) / cachedRect.width) * 100;
-        const dy = ((e.clientY - startY) / cachedRect.height) * 100;
+        // 절대 좌표를 overlay 기준 상대 좌표로 변환
+        const currentX = e.clientX - cachedRect.left;
+        const currentY = e.clientY - cachedRect.top;
+        const prevX = startX - cachedRect.left;
+        const prevY = startY - cachedRect.top;
+        const dx = ((currentX - prevX) / cachedRect.width) * 100;
+        const dy = ((currentY - prevY) / cachedRect.height) * 100;
 
         if (isDragging) {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
@@ -444,7 +449,7 @@ function setupPreviewDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 1 || dbg.moveCount <= 5)) {
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
@@ -503,7 +508,7 @@ function setupPreviewDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-    cachedRect = img.getBoundingClientRect();  // ✅ cropBox → img 수정
+        cachedRect = overlay.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
     // 디버그 카운터 초기화
@@ -534,7 +539,7 @@ function setupPreviewDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-    cachedRect = img.getBoundingClientRect();  // ✅ cropBox → img 수정
+        cachedRect = overlay.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
@@ -824,8 +829,13 @@ function setupEditDrag() {
     const onPointerMove = (e) => {
         if (!e.isPrimary || (!isDragging && !isResizing)) return;
 
-        const dx = ((e.clientX - startX) / cachedRect.width) * 100;
-        const dy = ((e.clientY - startY) / cachedRect.height) * 100;
+        // 절대 좌표를 overlay 기준 상대 좌표로 변환
+        const currentX = e.clientX - cachedRect.left;
+        const currentY = e.clientY - cachedRect.top;
+        const prevX = startX - cachedRect.left;
+        const prevY = startY - cachedRect.top;
+        const dx = ((currentX - prevX) / cachedRect.width) * 100;
+        const dy = ((currentY - prevY) / cachedRect.height) * 100;
 
         if (isDragging) {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
@@ -843,7 +853,7 @@ function setupEditDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 1 || dbg.moveCount <= 5)) {
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
@@ -900,7 +910,7 @@ function setupEditDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-    cachedRect = img.getBoundingClientRect();  // ✅ cropBox → img 수정
+        cachedRect = overlay.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
     // 디버그 카운터 초기화
@@ -931,7 +941,7 @@ function setupEditDrag() {
         startX = e.clientX;
         startY = e.clientY;
         startCropArea = { ...cropArea };
-    cachedRect = img.getBoundingClientRect();  // ✅ cropBox → img 수정
+        cachedRect = overlay.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
