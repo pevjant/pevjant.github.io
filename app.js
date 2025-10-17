@@ -1,5 +1,18 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
+
+// ===== 디버그 유틸 =====
+function isDebug() {
+    try {
+        return /(^|[?&])debug=1(&|$)/.test(location.search) || localStorage.getItem('DEBUG_DRAG') === '1';
+    } catch {
+        return false;
+    }
+}
+function dlog(scope, ...args) {
+    if (!isDebug()) return;
+    console.log(`[${new Date().toISOString()}][${scope}]`, ...args);
+}
 
 // ===== Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
@@ -373,6 +386,19 @@ function setupPreviewDrag() {
     let rafId = null;
     let pointerId = null;
     let lastInputUpdate = 0;
+    const dbg = {
+        scope: 'preview',
+        type: '',
+        startTs: 0,
+        firstMoveTs: 0,
+        lastMoveTs: 0,
+        lastRenderTs: 0,
+        moveCount: 0,
+        renderCount: 0,
+        lastLogTs: 0,
+        startScrollY: 0,
+        lastCoalesced: 0,
+    };
 
     const render = (finalize = false) => {
         cropBox.style.left = cropArea.x + '%';
@@ -384,6 +410,12 @@ function setupPreviewDrag() {
         if (finalize || now - lastInputUpdate > 100) {
             updateCropInputs();
             lastInputUpdate = now;
+        }
+        dbg.renderCount++;
+        dbg.lastRenderTs = now;
+        const latency = dbg.lastRenderTs - dbg.lastMoveTs;
+        if (isDebug() && (finalize || latency > 50)) {
+            dlog(`${dbg.scope}:render`, { finalize, latency: Math.round(latency), moveCount: dbg.moveCount, renderCount: dbg.renderCount });
         }
         rafId = null;
     };
@@ -402,6 +434,25 @@ function setupPreviewDrag() {
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
 
+        // 디버깅: 이동 이벤트 통계
+        dbg.moveCount++;
+        const now = performance.now();
+        if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
+        dbg.lastMoveTs = now;
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 3)) {
+            const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
+            dbg.lastCoalesced = coalesced;
+            dlog(`${dbg.scope}:move`, {
+                type: dbg.type,
+                dx: +dx.toFixed(2), dy: +dy.toFixed(2),
+                area: { ...cropArea },
+                rafPending: !!rafId,
+                coalesced,
+                scrollDY: window.scrollY - dbg.startScrollY,
+            });
+            dbg.lastLogTs = now;
+        }
+
         if (!rafId) rafId = requestAnimationFrame(() => render(false));
     };
 
@@ -414,6 +465,19 @@ function setupPreviewDrag() {
         try { cropBox.releasePointerCapture(e.pointerId); } catch {}
         // 최종 입력값 반영
         if (!rafId) rafId = requestAnimationFrame(() => render(true));
+        if (isDebug()) {
+            const total = performance.now() - dbg.startTs;
+            dlog(`${dbg.scope}:up`, {
+                type: dbg.type,
+                duration: Math.round(total),
+                moves: dbg.moveCount,
+                renders: dbg.renderCount,
+                firstMoveDelay: Math.round((dbg.firstMoveTs || dbg.startTs) - dbg.startTs),
+                lastLatency: Math.round(dbg.lastRenderTs - dbg.lastMoveTs),
+                lastCoalesced: dbg.lastCoalesced,
+                finalArea: { ...cropArea },
+            });
+        }
     };
 
     const startMove = (e) => {
@@ -427,6 +491,18 @@ function setupPreviewDrag() {
         cachedRect = img.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
+        dbg.type = 'move';
+        dbg.startTs = performance.now();
+        dbg.startScrollY = window.scrollY;
+        dlog(`${dbg.scope}:down`, {
+            type: dbg.type,
+            pid: e.pointerId,
+            primary: e.isPrimary,
+            pType: e.pointerType,
+            x: e.clientX, y: e.clientY,
+            rect: { w: cachedRect.width, h: cachedRect.height, l: cachedRect.left, t: cachedRect.top },
+            area: { ...startCropArea },
+        });
     };
 
     const startResize = (e) => {
@@ -440,6 +516,18 @@ function setupPreviewDrag() {
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
+        dbg.type = 'resize';
+        dbg.startTs = performance.now();
+        dbg.startScrollY = window.scrollY;
+        dlog(`${dbg.scope}:down`, {
+            type: dbg.type,
+            pid: e.pointerId,
+            primary: e.isPrimary,
+            pType: e.pointerType,
+            x: e.clientX, y: e.clientY,
+            rect: { w: cachedRect.width, h: cachedRect.height, l: cachedRect.left, t: cachedRect.top },
+            area: { ...startCropArea },
+        });
     };
 
     // Pointer Events 등록 (단일 경로)
@@ -669,6 +757,19 @@ function setupEditDrag() {
     let rafId = null;
     let pointerId = null;
     let lastInputUpdate = 0;
+    const dbg = {
+        scope: 'edit',
+        type: '',
+        startTs: 0,
+        firstMoveTs: 0,
+        lastMoveTs: 0,
+        lastRenderTs: 0,
+        moveCount: 0,
+        renderCount: 0,
+        lastLogTs: 0,
+        startScrollY: 0,
+        lastCoalesced: 0,
+    };
 
     const render = (finalize = false) => {
         cropBox.style.left = cropArea.x + '%';
@@ -680,6 +781,12 @@ function setupEditDrag() {
         if (finalize || now - lastInputUpdate > 100) {
             updateEditCropInputs();
             lastInputUpdate = now;
+        }
+        dbg.renderCount++;
+        dbg.lastRenderTs = now;
+        const latency = dbg.lastRenderTs - dbg.lastMoveTs;
+        if (isDebug() && (finalize || latency > 50)) {
+            dlog(`${dbg.scope}:render`, { finalize, latency: Math.round(latency), moveCount: dbg.moveCount, renderCount: dbg.renderCount });
         }
         rafId = null;
     };
@@ -698,6 +805,25 @@ function setupEditDrag() {
             cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
 
+        // 디버깅: 이동 이벤트 통계
+        dbg.moveCount++;
+        const now = performance.now();
+        if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
+        dbg.lastMoveTs = now;
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 3)) {
+            const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
+            dbg.lastCoalesced = coalesced;
+            dlog(`${dbg.scope}:move`, {
+                type: dbg.type,
+                dx: +dx.toFixed(2), dy: +dy.toFixed(2),
+                area: { ...cropArea },
+                rafPending: !!rafId,
+                coalesced,
+                scrollDY: window.scrollY - dbg.startScrollY,
+            });
+            dbg.lastLogTs = now;
+        }
+
         if (!rafId) rafId = requestAnimationFrame(() => render(false));
     };
 
@@ -709,6 +835,19 @@ function setupEditDrag() {
         pointerId = null;
         try { cropBox.releasePointerCapture(e.pointerId); } catch {}
         if (!rafId) rafId = requestAnimationFrame(() => render(true));
+        if (isDebug()) {
+            const total = performance.now() - dbg.startTs;
+            dlog(`${dbg.scope}:up`, {
+                type: dbg.type,
+                duration: Math.round(total),
+                moves: dbg.moveCount,
+                renders: dbg.renderCount,
+                firstMoveDelay: Math.round((dbg.firstMoveTs || dbg.startTs) - dbg.startTs),
+                lastLatency: Math.round(dbg.lastRenderTs - dbg.lastMoveTs),
+                lastCoalesced: dbg.lastCoalesced,
+                finalArea: { ...cropArea },
+            });
+        }
     };
 
     const startMove = (e) => {
@@ -722,6 +861,18 @@ function setupEditDrag() {
         cachedRect = img.getBoundingClientRect();
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
+        dbg.type = 'move';
+        dbg.startTs = performance.now();
+        dbg.startScrollY = window.scrollY;
+        dlog(`${dbg.scope}:down`, {
+            type: dbg.type,
+            pid: e.pointerId,
+            primary: e.isPrimary,
+            pType: e.pointerType,
+            x: e.clientX, y: e.clientY,
+            rect: { w: cachedRect.width, h: cachedRect.height, l: cachedRect.left, t: cachedRect.top },
+            area: { ...startCropArea },
+        });
     };
 
     const startResize = (e) => {
@@ -735,6 +886,18 @@ function setupEditDrag() {
         try { cropBox.setPointerCapture(e.pointerId); } catch {}
         e.preventDefault();
         e.stopPropagation();
+        dbg.type = 'resize';
+        dbg.startTs = performance.now();
+        dbg.startScrollY = window.scrollY;
+        dlog(`${dbg.scope}:down`, {
+            type: dbg.type,
+            pid: e.pointerId,
+            primary: e.isPrimary,
+            pType: e.pointerType,
+            x: e.clientX, y: e.clientY,
+            rect: { w: cachedRect.width, h: cachedRect.height, l: cachedRect.left, t: cachedRect.top },
+            area: { ...startCropArea },
+        });
     };
 
     cropBox.addEventListener('pointerdown', startMove);
