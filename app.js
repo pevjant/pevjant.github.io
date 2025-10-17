@@ -444,13 +444,22 @@ function setupPreviewDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 3)) {
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
                 type: dbg.type,
+                // 🔍 상세 디버깅
+                clientX: e.clientX, clientY: e.clientY,
+                startX, startY,
+                rectW: cachedRect.width, rectH: cachedRect.height,
                 dx: +dx.toFixed(2), dy: +dy.toFixed(2),
-                area: { ...cropArea },
+                startArea: { ...startCropArea },
+                calcX: +(startCropArea.x + dx).toFixed(2),
+                calcY: +(startCropArea.y + dy).toFixed(2),
+                calcW: +(startCropArea.width + dx).toFixed(2),
+                calcH: +(startCropArea.height + dy).toFixed(2),
+                finalArea: { ...cropArea },
                 rafPending: !!rafId,
                 coalesced,
                 scrollDY: window.scrollY - dbg.startScrollY,
@@ -834,13 +843,22 @@ function setupEditDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 3)) {
+        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
                 type: dbg.type,
+                // 🔍 상세 디버깅
+                clientX: e.clientX, clientY: e.clientY,
+                startX, startY,
+                rectW: cachedRect.width, rectH: cachedRect.height,
                 dx: +dx.toFixed(2), dy: +dy.toFixed(2),
-                area: { ...cropArea },
+                startArea: { ...startCropArea },
+                calcX: +(startCropArea.x + dx).toFixed(2),
+                calcY: +(startCropArea.y + dy).toFixed(2),
+                calcW: +(startCropArea.width + dx).toFixed(2),
+                calcH: +(startCropArea.height + dy).toFixed(2),
+                finalArea: { ...cropArea },
                 rafPending: !!rafId,
                 coalesced,
                 scrollDY: window.scrollY - dbg.startScrollY,
