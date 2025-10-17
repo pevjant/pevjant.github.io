@@ -110,6 +110,13 @@ open http://localhost:8000
 
 ## 🔧 개발 로그
 
+### v1.0.1 (2025-10-17)
+- 🔄 Service Worker 캐시 버전 업데이트
+- ✨ 자동 업데이트 감지 및 적용
+- 📌 앱 헤더에 버전 표시
+- 🐛 이전 캐시 자동 삭제 개선
+- 📚 Troubleshooting 가이드 추가
+
 ### v1.0.0 (2025-10-17)
 - ✅ 핵심 기능 구현
 - ✅ 크롭 프리셋 시스템
@@ -117,6 +124,15 @@ open http://localhost:8000
 - ✅ 이미지 합성 엔진
 - ✅ PWA 설정
 - ✅ 공유 받기 기능
+
+## 🔧 문제 해결
+
+문제가 발생했나요? [Troubleshooting Guide](./TROUBLESHOOTING.md)를 확인하세요.
+
+주요 해결 방법:
+- 브라우저 캐시 삭제
+- Service Worker 재등록
+- PWA 재설치
 
 ## 📝 라이선스
 

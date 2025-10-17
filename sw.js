@@ -1,4 +1,4 @@
-const CACHE_NAME = 'image-composer-v1.0.0';
+const CACHE_NAME = 'image-composer-v1.0.1';
 const urlsToCache = [
   '/',
   '/app.html',
@@ -11,25 +11,48 @@ const urlsToCache = [
 
 // 설치
 self.addEventListener('install', (event) => {
+  console.log('✅ Service Worker 설치 중...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-      .then(() => self.skipWaiting())
+      .then(cache => {
+        console.log('📦 캐시에 파일 추가:', urlsToCache);
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        console.log('⚡ 즉시 활성화');
+        return self.skipWaiting();
+      })
   );
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('🔧 Service Worker 활성화 중...');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME && cacheName !== 'shared-files') {
+          // 현재 버전과 shared-files, shared-data를 제외한 모든 캐시 삭제
+          if (cacheName !== CACHE_NAME && 
+              cacheName !== 'shared-files' && 
+              cacheName !== 'shared-data') {
+            console.log('🗑️ 이전 캐시 삭제:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('✅ 모든 클라이언트에 대해 활성화');
+      return self.clients.claim();
+    })
   );
+});
+
+// SKIP_WAITING 메시지 처리
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⚡ SKIP_WAITING 메시지 받음 - 즉시 활성화');
+    self.skipWaiting();
+  }
 });
 
 // Fetch 처리
