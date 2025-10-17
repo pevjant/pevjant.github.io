@@ -1,7 +1,7 @@
 {
   "name": "Image Composer",
   "short_name": "ImgComp",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "이미지 크롭 & 합성 도구 - 유튜브 자막 최적화",
   "start_url": "/app.html",
   "scope": "/",
