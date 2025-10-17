@@ -1,6 +1,8 @@
-const CACHE_NAME = 'share-pwa-v1.1.0';
+const CACHE_NAME = 'image-composer-v1.0.0';
 const urlsToCache = [
   '/',
+  '/app.html',
+  '/app.js',
   '/index.html',
   '/manifest.json',
   '/icon-192x192.png',
@@ -35,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
   // POST 요청으로 들어오는 공유 타겟 처리
-  if (event.request.method === 'POST' && url.pathname === '/share') {
+  if (event.request.method === 'POST' && (url.pathname === '/share' || url.pathname === '/app.html')) {
     event.respondWith(handleShareTarget(event.request));
     return;
   }
@@ -63,8 +65,8 @@ async function handleShareTarget(request) {
 
     console.log('📝 공유 데이터:', { title, text, url: sharedUrl });
 
-    // manifest.json의 name: "files"와 일치해야 함
-    const files = formData.getAll('files') || [];
+    // manifest.json의 name: "files" 또는 "image"와 일치
+    const files = formData.getAll('files') || formData.getAll('image') || [];
     console.log(`📁 파일 개수: ${files.length}`);
 
     // 파일을 Cache에 저장하고 접근 가능한 URL을 만들어서 클라이언트에 전달
@@ -106,8 +108,8 @@ async function handleShareTarget(request) {
     );
 
     // UI 페이지로 리다이렉트
-    console.log('🔄 리다이렉트: /?shared=1');
-    return Response.redirect('/?shared=1', 303);
+    console.log('🔄 리다이렉트: /app.html?shared=1');
+    return Response.redirect('/app.html?shared=1', 303);
   } catch (e) {
     console.error('❌ Share Target 처리 실패:', e);
     return new Response(`Share handling failed: ${e.message}`, { status: 500 });

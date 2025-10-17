@@ -1,12 +1,13 @@
 {
-  "name": "Share PWA",
-  "short_name": "SharePWA",
-  "description": "Share content from other apps",
-  "start_url": "/",
+  "name": "Image Composer",
+  "short_name": "ImgComp",
+  "description": "이미지 크롭 & 합성 도구 - 유튜브 자막 최적화",
+  "start_url": "/app.html",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#2196F3",
+  "theme_color": "#4A90E2",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -34,17 +35,14 @@
     }
   ],
   "share_target": {
-    "action": "/share",
+    "action": "/app.html",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
       "files": [
         {
-          "name": "files",
-          "accept": ["image/*", "video/*"]
+          "name": "image",
+          "accept": ["image/*"]
         }
       ]
     }

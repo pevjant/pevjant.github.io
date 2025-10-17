@@ -5,6 +5,56 @@ if ('serviceWorker' in navigator) {
         .catch(err => console.error('SW error:', err));
 }
 
+// ===== 공유 받기 처리 =====
+window.addEventListener('DOMContentLoaded', async () => {
+    const url = new URL(window.location.href);
+    
+    if (url.searchParams.get('shared') === '1') {
+        try {
+            const cache = await caches.open('shared-data');
+            const response = await cache.match('/shared-data/latest');
+            
+            if (response) {
+                const data = await response.json();
+                
+                // 공유받은 이미지를 state에 추가
+                if (data.files && data.files.length > 0) {
+                    for (const fileData of data.files) {
+                        try {
+                            const fileCache = await caches.open('shared-files');
+                            const fileResponse = await fileCache.match(fileData.url);
+                            if (fileResponse) {
+                                const blob = await fileResponse.blob();
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    state.images.push({
+                                        id: generateId(),
+                                        file: null,
+                                        dataUrl: e.target.result,
+                                        cropped: false,
+                                        cropData: null,
+                                        comment: ''
+                                    });
+                                    renderImageGallery();
+                                };
+                                reader.readAsDataURL(blob);
+                            }
+                        } catch (err) {
+                            console.error('File load error:', err);
+                        }
+                    }
+                    showToast(`${data.files.length}개 이미지 받음`);
+                }
+                
+                await cache.delete('/shared-data/latest');
+                window.history.replaceState({}, '', '/app.html');
+            }
+        } catch (error) {
+            console.error('Share load failed:', error);
+        }
+    }
+});
+
 // ===== 상태 관리 =====
 const state = {
     images: [],
