@@ -1,5 +1,5 @@
 // ===== 앱 버전 =====
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.8.1';
 
 // ===== 디버그 유틸 =====
 function isDebug() {
@@ -444,7 +444,7 @@ function setupPreviewDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
+        if (isDebug() && (now - dbg.lastLogTs > 1 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
@@ -843,7 +843,7 @@ function setupEditDrag() {
         const now = performance.now();
         if (!dbg.firstMoveTs) dbg.firstMoveTs = now;
         dbg.lastMoveTs = now;
-        if (isDebug() && (now - dbg.lastLogTs > 200 || dbg.moveCount <= 5)) {
+        if (isDebug() && (now - dbg.lastLogTs > 1 || dbg.moveCount <= 5)) {
             const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents().length : 0;
             dbg.lastCoalesced = coalesced;
             dlog(`${dbg.scope}:move`, {
