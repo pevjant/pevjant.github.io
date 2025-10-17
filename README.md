@@ -1,66 +1,131 @@
-# Share PWA v1.0.0
+# 📱 Image Composer
 
-안드로이드에서 다른 앱의 콘텐츠를 이 PWA로 공유할 수 있는 Progressive Web App입니다.
+> 모바일 최적화 이미지 크롭 & 합성 PWA
 
-## 🚀 기능
+유튜브 자막 캡처를 빠르게 편집하고 하나의 이미지로 합성하는 모바일 웹 앱입니다.
 
-- ✅ 텍스트, URL, 이미지, 비디오, 오디오 파일 공유 지원
-- ✅ 안드로이드 Share Target API 지원
-- ✅ 오프라인 지원 (Service Worker)
-- ✅ 홈 화면 설치 가능
+## ✨ 주요 기능
 
-## 📱 사용 방법
+### 🎯 핵심 기능
+- **이미지 입력**: 갤러리에서 선택 또는 다른 앱에서 공유받기
+- **크롭 프리셋**: 유튜브 자막, 하단 30%, 하단 20%, 전체
+- **개별 크롭**: 드래그로 영역 조정
+- **배치 크롭**: 여러 이미지 일괄 처리
+- **코멘트 추가**: 각 이미지에 텍스트 추가
+- **세로 합성**: 모든 이미지를 하나로 결합
+- **공유 & 저장**: 네이티브 공유 또는 다운로드
 
-1. https://pevjant.github.io 접속
-2. "홈 화면에 추가" 또는 "설치" 버튼 클릭
-3. 다른 앱에서 콘텐츠를 공유할 때 "SharePWA" 선택
+### 📱 모바일 최적화
+- PWA (Progressive Web App)
+- 오프라인 지원
+- 터치 제스처
+- 세로 방향 고정
+- 홈 화면에 추가 가능
 
-## 🔧 개발
+## 🚀 사용 방법
 
-### 버전 업데이트
+### 1. 이미지 선택
+- "이미지 선택" 버튼으로 갤러리에서 선택
+- 또는 다른 앱에서 "공유하기" → Image Composer
 
-```bash
-# 버전 변경 (예: 1.0.0 -> 1.0.1)
-./update-version.sh 1.0.1
+### 2. 크롭 편집
+- **개별 편집**: 각 이미지의 "편집" 버튼
+- **배치 편집**: 
+  1. 여러 이미지 선택 (체크박스)
+  2. 편집 탭에서 프리셋 선택
+  3. "일괄 크롭 시작"
 
-# 변경사항 커밋 및 푸시
-git add -A
-git commit -m "Bump version to 1.0.1"
-git push origin main
+### 3. 합성
+- "합성" 탭으로 이동
+- 최대 너비, 간격 조정 (선택사항)
+- "이미지 합성하기" 버튼
+
+### 4. 저장/공유
+- **저장**: 디바이스에 PNG로 다운로드
+- **공유**: 다른 앱으로 즉시 공유
+
+## 🎨 크롭 프리셋
+
+| 프리셋 | 용도 | 크롭 영역 |
+|--------|------|-----------|
+| 유튜브 자막 | 자막만 추출 | 하단 25% |
+| 하단 30% | 큰 자막 | 하단 30% |
+| 하단 20% | 작은 자막 | 하단 20% |
+| 전체 | 전체 이미지 | 100% |
+
+## 💡 사용 시나리오
+
+### 예시: 유튜브 자막 4장 처리
+```
+1. 유튜브에서 4장 스크린샷
+2. Image Composer에서 이미지 선택
+3. 첫 번째: "하단 30%" 프리셋 적용
+4. 나머지 3개: 선택 → "하단 20%" → 일괄 크롭
+5. 필요시 코멘트 추가
+6. 합성 → 저장/공유
 ```
 
-### 로컬 테스트
+⏱️ **소요 시간: 약 30초**
 
+## 🛠 기술 스택
+
+- **HTML5 + JavaScript** (Vanilla JS)
+- **Tailwind CSS** (CDN)
+- **Canvas API** (이미지 처리)
+- **Web Share API** (공유)
+- **Share Target API** (공유 받기)
+- **Service Worker** (PWA, 오프라인)
+
+## 📦 설치
+
+### PWA로 설치
+1. 브라우저에서 https://pevjant.github.io 접속
+2. 브라우저 메뉴 → "홈 화면에 추가"
+3. 설치 완료 후 앱처럼 사용
+
+### 로컬 실행
 ```bash
-# Python 3
-python3 -m http.server 8080
+# 저장소 클론
+git clone https://github.com/pevjant/pevjant.github.io.git
+cd pevjant.github.io
 
-# 브라우저에서 접속
-# http://localhost:8080
+# HTTP 서버 실행 (예: Python)
+python -m http.server 8000
+
+# 브라우저에서 열기
+open http://localhost:8000
 ```
 
-## 📂 파일 구조
+## 📂 프로젝트 구조
 
 ```
 .
-├── index.html              # 메인 PWA 페이지
-├── manifest.json           # PWA Manifest (Share Target 설정)
-├── sw.js                   # Service Worker
-├── test-share.html         # 테스트 페이지
-├── update-version.sh       # 버전 업데이트 스크립트
-├── TROUBLESHOOTING.md      # 문제 해결 가이드
-└── icon-*.png              # PWA 아이콘
+├── app.html          # 메인 앱 UI
+├── app.js            # 앱 로직
+├── index.html        # 리다이렉트 페이지
+├── manifest.json     # PWA 설정
+├── sw.js            # Service Worker
+└── icon-*.png       # 앱 아이콘
 ```
 
-## 🐛 문제 해결
+## 🔧 개발 로그
 
-문제가 발생하면 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) 파일을 참조하세요.
+### v1.0.0 (2025-10-17)
+- ✅ 핵심 기능 구현
+- ✅ 크롭 프리셋 시스템
+- ✅ 배치 크롭 처리
+- ✅ 이미지 합성 엔진
+- ✅ PWA 설정
+- ✅ 공유 받기 기능
 
-## 📝 버전 히스토리
+## 📝 라이선스
 
-### v1.0.0 (2025-10-16)
-- 초기 릴리즈
-- Share Target API 지원
-- 이미지/비디오/오디오/텍스트 파일 공유 지원
-- Service Worker 캐싱
-- 버전 관리 시스템 추가
+MIT License
+
+## 🤝 기여
+
+이슈, PR 환영합니다!
+
+---
+
+**Made with ❤️ for mobile users**
