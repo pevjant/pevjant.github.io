@@ -82,7 +82,8 @@ const state = {
     currentPreset: null,
     croppedImages: [],
     resultImage: null,
-    customCropPresets: [] // 사용자 정의 프리셋 저장
+    customCropPresets: [], // 사용자 정의 프리셋 저장
+    tempPreset: null // 임시 프리셋 (현재 크롭 영역)
 };
 
 // ===== 프리셋 로컬스토리지 관리 =====
@@ -679,6 +680,7 @@ function showCropEditor() {
     cropImage.onload = () => {
         updateEditCropInputs();
         renderCropOverlay();
+        renderEditPresetButtons(); // 프리셋 버튼 렌더링
     };
 }
 
@@ -718,6 +720,74 @@ function updateEditCropArea(side, value) {
     
     updateEditCropInputs();
     renderCropOverlay();
+    
+    // 임시 프리셋 업데이트
+    updateTempPreset();
+}
+
+// 임시 프리셋 업데이트 함수
+function updateTempPreset() {
+    state.tempPreset = {
+        id: 'temp',
+        name: '현재 크롭',
+        area: { ...cropArea },
+        createdAt: Date.now()
+    };
+    renderEditPresetButtons();
+}
+
+// 편집 화면에서 프리셋 버튼 렌더링
+function renderEditPresetButtons() {
+    const container = document.getElementById('editPresetButtons');
+    if (!container) return;
+    
+    // 임시 프리셋 + 저장된 프리셋 (최대 5개)
+    const presets = [];
+    if (state.tempPreset) {
+        presets.push(state.tempPreset);
+    }
+    // 최근 저장된 프리셋부터 최대 4개 추가 (임시 포함 총 5개)
+    const savedPresets = [...state.customCropPresets].reverse().slice(0, 4);
+    presets.push(...savedPresets);
+    
+    if (presets.length === 0) {
+        container.innerHTML = '<div class="text-xs text-gray-400">저장된 프리셋이 없습니다</div>';
+        return;
+    }
+    
+    container.innerHTML = presets.map(preset => `
+        <button onclick="applyEditPreset('${preset.id}')" 
+                class="px-3 py-2 text-sm bg-white border-2 ${preset.id === 'temp' ? 'border-blue-500 text-blue-600 font-medium' : 'border-gray-300 text-gray-700'} rounded-lg whitespace-nowrap active:bg-gray-50">
+            ${preset.id === 'temp' ? '📍' : '📋'} ${preset.name}
+        </button>
+    `).join('');
+}
+
+// 편집 화면에서 프리셋 적용
+function applyEditPreset(id) {
+    let preset;
+    if (id === 'temp') {
+        preset = state.tempPreset;
+    } else {
+        preset = state.customCropPresets.find(p => p.id === id);
+    }
+    
+    if (preset) {
+        cropArea = { ...preset.area };
+        updateEditCropInputs();
+        renderCropOverlay();
+        showToast(`"${preset.name}" 적용됨`);
+    }
+}
+
+// 편집 화면에서 프리셋 저장
+function saveCurrentEditPreset() {
+    const name = prompt('프리셋 이름을 입력하세요:');
+    if (name && name.trim()) {
+        saveCustomPreset(name.trim(), cropArea);
+        renderEditPresetButtons();
+        showToast('프리셋 저장됨 ✓');
+    }
 }
 
 function hideCropEditor() {

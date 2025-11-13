@@ -253,6 +253,18 @@
                         </div>
                     </div>
 
+                    <!-- 프리셋 버튼 영역 -->
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-sm text-gray-700 font-medium">크롭 프리셋</label>
+                            <button onclick="saveCurrentEditPreset()" 
+                                    class="text-xs bg-gray-500 text-white px-3 py-1 rounded active:bg-gray-600">
+                                💾 저장
+                            </button>
+                        </div>
+                        <div id="editPresetButtons" class="flex gap-2 overflow-x-auto pb-2"></div>
+                    </div>
+
                     <!-- 코멘트 입력 -->
                     <input type="text" id="commentInput" placeholder="코멘트 추가 (선택사항)" 
                            class="w-full p-3 border rounded-lg mb-3">
