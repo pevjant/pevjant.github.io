@@ -434,8 +434,8 @@ function setupPreviewDrag() {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
             cropArea.y = Math.max(0, Math.min(100 - startCropArea.height, startCropArea.y + dy));
         } else if (isResizing) {
-            cropArea.width = Math.max(10, Math.min(100 - startCropArea.x, startCropArea.width + dx));
-            cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
+            cropArea.width = Math.max(1, Math.min(100 - startCropArea.x, startCropArea.width + dx));
+            cropArea.height = Math.max(1, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
 
         // 스타일은 즉시 반영해 첫 프레임 지연 제거
@@ -836,8 +836,8 @@ function setupEditDrag() {
             cropArea.x = Math.max(0, Math.min(100 - startCropArea.width, startCropArea.x + dx));
             cropArea.y = Math.max(0, Math.min(100 - startCropArea.height, startCropArea.y + dy));
         } else if (isResizing) {
-            cropArea.width = Math.max(10, Math.min(100 - startCropArea.x, startCropArea.width + dx));
-            cropArea.height = Math.max(10, Math.min(100 - startCropArea.y, startCropArea.height + dy));
+            cropArea.width = Math.max(1, Math.min(100 - startCropArea.x, startCropArea.width + dx));
+            cropArea.height = Math.max(1, Math.min(100 - startCropArea.y, startCropArea.height + dy));
         }
 
         // 스타일 즉시 반영
