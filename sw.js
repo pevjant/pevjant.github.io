@@ -119,7 +119,7 @@ async function handleShareTarget(request) {
       files: fileEntries,
       timestamp: Date.now()
     };
-    console.log('� 데이터 저장:', data);
+    console.log('💾 데이터 저장:', data);
     
     // Cache API를 사용하여 데이터 저장
     const dataCache = await caches.open('shared-data');
