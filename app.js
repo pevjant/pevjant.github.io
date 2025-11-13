@@ -115,6 +115,88 @@ function deleteCustomPreset(id) {
     localStorage.setItem('customCropPresets', JSON.stringify(state.customCropPresets));
 }
 
+// 프리셋 순서 변경
+function movePreset(id, direction) {
+    const idx = state.customCropPresets.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= state.customCropPresets.length) return;
+    
+    // 순서 교환
+    [state.customCropPresets[idx], state.customCropPresets[newIdx]] = 
+    [state.customCropPresets[newIdx], state.customCropPresets[idx]];
+    
+    localStorage.setItem('customCropPresets', JSON.stringify(state.customCropPresets));
+}
+
+// 프리셋 관리 모달 열기
+function openPresetManager() {
+    const modal = document.getElementById('presetManager');
+    modal.classList.remove('hidden');
+    renderPresetManager();
+}
+
+// 프리셋 관리 모달 닫기
+function closePresetManager() {
+    const modal = document.getElementById('presetManager');
+    modal.classList.add('hidden');
+    // 편집 탭이 열려있으면 프리셋 목록 갱신
+    if (!document.getElementById('content-edit').classList.contains('hidden')) {
+        renderSavedPresets();
+    }
+}
+
+// 프리셋 관리 목록 렌더링
+function renderPresetManager() {
+    const list = document.getElementById('presetManagerList');
+    const empty = document.getElementById('presetManagerEmpty');
+    
+    if (state.customCropPresets.length === 0) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    list.innerHTML = state.customCropPresets.map((preset, idx) => `
+        <div class="flex items-center gap-2 p-3 bg-gray-50 rounded border">
+            <div class="flex-1">
+                <div class="font-medium">${preset.name}</div>
+                <div class="text-xs text-gray-500">
+                    ${preset.area.x.toFixed(0)}%, ${preset.area.y.toFixed(0)}%, ${preset.area.width.toFixed(0)}%×${preset.area.height.toFixed(0)}%
+                </div>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="movePreset('${preset.id}', 'up')" 
+                        ${idx === 0 ? 'disabled' : ''}
+                        class="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed">
+                    ▲
+                </button>
+                <button onclick="movePreset('${preset.id}', 'down')" 
+                        ${idx === state.customCropPresets.length - 1 ? 'disabled' : ''}
+                        class="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed">
+                    ▼
+                </button>
+                <button onclick="deletePresetFromManager('${preset.id}')" 
+                        class="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+                    삭제
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 프리셋 관리 모달에서 삭제
+function deletePresetFromManager(id) {
+    const preset = state.customCropPresets.find(p => p.id === id);
+    if (preset && confirm(`"${preset.name}" 프리셋을 삭제하시겠습니까?`)) {
+        deleteCustomPreset(id);
+        renderPresetManager();
+        showToast('프리셋 삭제됨');
+    }
+}
+
 // ===== 초기 프리셋 로드 =====
 loadCustomPresets();
 
