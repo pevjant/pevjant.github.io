@@ -110,19 +110,12 @@ open http://localhost:8000
 
 ## 🔧 개발 로그
 
-### 디버깅
-
-드래그 성능/가속 문제 로그 활성화 방법:
-
-- URL에 `?debug=1` 추가 (예: `/app.html?debug=1`)
-- 또는 콘솔에서 `localStorage.setItem('DEBUG_DRAG','1')` 실행 후 새로고침
-
-활성화 시 다음 로그가 출력됩니다: `[preview|edit]:down`, `:move`, `:render`, `:up` (델타/렌더 지연/코알레스 이벤트/스크롤 변화 포함)
-
 ### v1.0.1 (2025-10-17)
-- ✅ 공유 받기 기능 복원 및 개선
-- ✅ 서비스워커 버전 업데이트 (강제 갱신)
-- ✅ Share Target 안정성 향상
+- 🔄 Service Worker 캐시 버전 업데이트
+- ✨ 자동 업데이트 감지 및 적용
+- 📌 앱 헤더에 버전 표시
+- 🐛 이전 캐시 자동 삭제 개선
+- 📚 Troubleshooting 가이드 추가
 
 ### v1.0.0 (2025-10-17)
 - ✅ 핵심 기능 구현
@@ -131,6 +124,15 @@ open http://localhost:8000
 - ✅ 이미지 합성 엔진
 - ✅ PWA 설정
 - ✅ 공유 받기 기능
+
+## 🔧 문제 해결
+
+문제가 발생했나요? [Troubleshooting Guide](./TROUBLESHOOTING.md)를 확인하세요.
+
+주요 해결 방법:
+- 브라우저 캐시 삭제
+- Service Worker 재등록
+- PWA 재설치
 
 ## 📝 라이선스
 
