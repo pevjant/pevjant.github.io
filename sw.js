@@ -38,6 +38,7 @@ self.addEventListener('activate', (event) => {
             console.log('🗑️ 이전 캐시 삭제:', cacheName);
             return caches.delete(cacheName);
           }
+          return Promise.resolve();
         })
       );
     }).then(() => {
@@ -60,20 +61,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
   // POST 요청으로 들어오는 공유 타겟 처리
-  if (event.request.method === 'POST' && (url.pathname === '/share' || url.pathname === '/app.html')) {
+  if (event.request.method === 'POST' && url.pathname === '/app.html') {
     event.respondWith(handleShareTarget(event.request));
     return;
   }
   
-  // 캐시된 파일 제공 (공유된 파일 포함)
+  // 캐시된 파일 제공
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
 
@@ -82,17 +77,10 @@ async function handleShareTarget(request) {
   
   try {
     const formData = await request.formData();
-    const title = formData.get('title') || '';
-    const text = formData.get('text') || '';
-    const sharedUrl = formData.get('url') || '';
+    const files = formData.getAll('image');
+    console.log(`📁 공유받은 파일 개수: ${files.length}`);
 
-    console.log('📝 공유 데이터:', { title, text, url: sharedUrl });
-
-    // manifest.json의 name: "files" 또는 "image"와 일치
-    const files = formData.getAll('files') || formData.getAll('image') || [];
-    console.log(`📁 파일 개수: ${files.length}`);
-
-    // 파일을 Cache에 저장하고 접근 가능한 URL을 만들어서 클라이언트에 전달
+    // 파일을 Cache에 저장
     const fileEntries = [];
     for (const file of files) {
       if (!(file instanceof File)) continue;
@@ -111,17 +99,13 @@ async function handleShareTarget(request) {
       });
     }
 
-    // 공유 데이터를 Cache에 저장 (페이지가 로드된 후 읽을 수 있도록)
+    // 공유 데이터를 Cache에 저장
     const data = { 
-      title, 
-      text, 
-      url: sharedUrl, 
       files: fileEntries,
       timestamp: Date.now()
     };
     console.log('💾 데이터 저장:', data);
     
-    // Cache API를 사용하여 데이터 저장
     const dataCache = await caches.open('shared-data');
     await dataCache.put(
       '/shared-data/latest',
@@ -135,6 +119,6 @@ async function handleShareTarget(request) {
     return Response.redirect('/app.html?shared=1', 303);
   } catch (e) {
     console.error('❌ Share Target 처리 실패:', e);
-    return new Response(`Share handling failed: ${e.message}`, { status: 500 });
+    return Response.redirect('/app.html', 303);
   }
 }

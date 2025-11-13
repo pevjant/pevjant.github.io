@@ -16,24 +16,40 @@
         body {
             overscroll-behavior: none;
         }
+        body.crop-editing {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
         .crop-area {
             position: absolute;
             border: 2px solid #4A90E2;
             background: rgba(74, 144, 226, 0.1);
             cursor: move;
+            touch-action: none;
         }
         .resize-handle {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 40px;
+            height: 40px;
             background: #4A90E2;
-            border: 2px solid white;
+            border: 3px solid white;
             border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            touch-action: none;
         }
-        .handle-nw { top: -10px; left: -10px; cursor: nwse-resize; }
-        .handle-ne { top: -10px; right: -10px; cursor: nesw-resize; }
-        .handle-sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
-        .handle-se { bottom: -10px; right: -10px; cursor: nwse-resize; }
+        .handle-nw { top: -20px; left: -20px; cursor: nwse-resize; }
+        .handle-ne { top: -20px; right: -20px; cursor: nesw-resize; }
+        .handle-sw { bottom: -20px; left: -20px; cursor: nesw-resize; }
+        .handle-se { bottom: -20px; right: -20px; cursor: nwse-resize; }
+        .crop-container {
+            touch-action: none;
+            overflow: hidden;
+        }
+        #cropEditor {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
         .image-card {
             transition: transform 0.1s;
         }
@@ -103,61 +119,158 @@
 
             <!-- 편집 탭 -->
             <div id="content-edit" class="p-4 hidden">
-                <!-- 프리셋 -->
+                <!-- 대표 이미지 미리보기 -->
                 <div class="mb-6">
-                    <h3 class="font-bold mb-3">크롭 프리셋</h3>
-                    <div class="grid grid-cols-2 gap-3" id="presetButtons"></div>
+                    <h3 class="font-bold mb-3">크롭 미리보기</h3>
+                    <div id="cropPreview"></div>
                 </div>
 
-                <!-- 선택된 이미지 정보 -->
-                <div id="selectedInfo" class="mb-4 p-3 bg-blue-50 rounded-lg hidden">
-                    <div class="text-sm font-medium text-blue-700">선택: <span id="selectedCount">0</span>개</div>
+                <!-- 크롭 영역 조정 -->
+                <div class="mb-6">
+                    <h3 class="font-bold mb-3">크롭 영역 설정</h3>
+                    
+                    <!-- 상단 -->
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 mb-1 block">상단 (%)</label>
+                        <input type="range" id="rangeTop" min="0" max="100" value="0" 
+                               oninput="updateCropArea('top', this.value)"
+                               class="w-full mb-1">
+                        <input type="number" id="cropTop" min="0" max="100" value="0" 
+                               oninput="updateCropArea('top', this.value)"
+                               class="w-full p-2 border rounded-lg text-center">
+                    </div>
+
+                    <!-- 하단 -->
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 mb-1 block">하단 (%)</label>
+                        <input type="range" id="rangeBottom" min="0" max="100" value="0" 
+                               oninput="updateCropArea('bottom', this.value)"
+                               class="w-full mb-1">
+                        <input type="number" id="cropBottom" min="0" max="100" value="0" 
+                               oninput="updateCropArea('bottom', this.value)"
+                               class="w-full p-2 border rounded-lg text-center">
+                    </div>
+
+                    <!-- 좌측 -->
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 mb-1 block">좌측 (%)</label>
+                        <input type="range" id="rangeLeft" min="0" max="100" value="0" 
+                               oninput="updateCropArea('left', this.value)"
+                               class="w-full mb-1">
+                        <input type="number" id="cropLeft" min="0" max="100" value="0" 
+                               oninput="updateCropArea('left', this.value)"
+                               class="w-full p-2 border rounded-lg text-center">
+                    </div>
+
+                    <!-- 우측 -->
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 mb-1 block">우측 (%)</label>
+                        <input type="range" id="rangeRight" min="0" max="100" value="0" 
+                               oninput="updateCropArea('right', this.value)"
+                               class="w-full mb-1">
+                        <input type="number" id="cropRight" min="0" max="100" value="0" 
+                               oninput="updateCropArea('right', this.value)"
+                               class="w-full p-2 border rounded-lg text-center">
+                    </div>
+
+                    <!-- 프리셋 저장 버튼 -->
+                    <button onclick="saveCurrentPreset()" 
+                            class="w-full py-2 bg-gray-500 text-white rounded-lg font-medium active:bg-gray-600 mb-4">
+                        💾 현재 설정 프리셋으로 저장
+                    </button>
                 </div>
 
-                <!-- 크롭 편집기 -->
-                <div id="cropEditor" class="hidden">
-                    <h3 class="font-bold mb-3">크롭 영역 조정</h3>
-                    <div class="relative inline-block w-full">
+                <!-- 저장된 프리셋 -->
+                <div class="mb-6">
+                    <h3 class="font-bold mb-3">저장된 프리셋</h3>
+                    <div id="savedPresets" class="space-y-2"></div>
+                </div>
+
+                <!-- 이미지 정보 -->
+                <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <div class="text-sm font-medium text-blue-700">
+                        전체 이미지: <span id="imageCount">0</span>개
+                    </div>
+                </div>
+
+                <!-- 진행률 -->
+                <div id="progressBar" class="mb-4 hidden">
+                    <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                        <div id="progressFill" class="bg-blue-500 h-3 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center text-sm text-gray-600">
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+
+                <!-- 일괄 크롭 버튼 -->
+                <button onclick="startBatchCrop()" id="batchCropButton" 
+                        class="w-full py-4 bg-green-500 text-white rounded-lg font-bold text-lg active:bg-green-600 disabled:bg-gray-300"
+                        disabled>
+                    ✂️ 전체 이미지 크롭하기
+                </button>
+            </div>
+
+            <!-- 합성 탭 -->
+            <div id="content-compose" class="p-4 hidden">
+                <!-- 크롭 편집기 (합성 탭 내부 - 슬라이더 방식) -->
+                <div id="cropEditor" class="hidden mb-6 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                    <h3 class="font-bold mb-3 text-blue-700">크롭 영역 수정</h3>
+                    
+                    <!-- 미리보기 -->
+                    <div class="relative inline-block w-full mb-4">
                         <img id="cropImage" class="max-w-full rounded">
                         <div id="cropOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
                     </div>
-                    <div class="mt-4 space-y-2">
-                        <input type="text" id="commentInput" placeholder="코멘트 추가 (선택사항)" 
-                               class="w-full p-3 border rounded-lg">
-                        <button onclick="applyCrop()" class="w-full py-3 bg-blue-500 text-white rounded-lg font-medium active:bg-blue-600">
-                            ✓ 크롭 적용
+
+                    <!-- 간단한 슬라이더 조정 -->
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <label class="text-sm text-gray-700 font-medium">상단 (%)</label>
+                            <input type="range" id="editRangeTop" min="0" max="100" value="0" 
+                                   oninput="updateEditCropArea('top', this.value)"
+                                   class="w-full">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-700 font-medium">하단 (%)</label>
+                            <input type="range" id="editRangeBottom" min="0" max="100" value="0" 
+                                   oninput="updateEditCropArea('bottom', this.value)"
+                                   class="w-full">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-700 font-medium">좌측 (%)</label>
+                            <input type="range" id="editRangeLeft" min="0" max="100" value="0" 
+                                   oninput="updateEditCropArea('left', this.value)"
+                                   class="w-full">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-700 font-medium">우측 (%)</label>
+                            <input type="range" id="editRangeRight" min="0" max="100" value="0" 
+                                   oninput="updateEditCropArea('right', this.value)"
+                                   class="w-full">
+                        </div>
+                    </div>
+
+                    <!-- 코멘트 입력 -->
+                    <input type="text" id="commentInput" placeholder="코멘트 추가 (선택사항)" 
+                           class="w-full p-3 border rounded-lg mb-3">
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyCrop()" class="py-3 bg-blue-500 text-white rounded-lg font-medium active:bg-blue-600">
+                            ✓ 수정 적용
                         </button>
-                        <button onclick="cancelCrop()" class="w-full py-2 text-gray-600 border rounded-lg active:bg-gray-50">
+                        <button onclick="cancelCrop()" class="py-3 text-gray-600 border rounded-lg active:bg-gray-50">
                             취소
                         </button>
                     </div>
                 </div>
 
-                <!-- 배치 크롭 -->
-                <div id="batchCrop" class="hidden">
-                    <div class="mb-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-bold">배치 크롭</h3>
-                            <button onclick="cancelBatch()" class="text-sm text-gray-500">취소</button>
-                        </div>
-                        <div id="progressBar" class="hidden">
-                            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                <div id="progressFill" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
-                            </div>
-                            <div class="text-center text-sm text-gray-600">
-                                <span id="progressText">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                    <button onclick="startBatchCrop()" id="batchButton" 
-                            class="w-full py-3 bg-green-500 text-white rounded-lg font-medium active:bg-green-600">
-                        ✂️ 일괄 크롭 시작
-                    </button>
+                <!-- 크롭된 이미지 미리보기 -->
+                <div class="mb-6">
+                    <h3 class="font-bold mb-3">크롭된 이미지 (<span id="croppedCount">0</span>개)</h3>
+                    <div id="croppedPreview"></div>
                 </div>
-            </div>
 
-            <!-- 합성 탭 -->
-            <div id="content-compose" class="p-4 hidden">
                 <!-- 합성 설정 -->
                 <div class="mb-6 space-y-3">
                     <h3 class="font-bold">합성 설정</h3>
@@ -171,12 +284,6 @@
                         <input type="number" id="padding" value="10" 
                                class="w-full p-2 border rounded-lg mt-1">
                     </div>
-                </div>
-
-                <!-- 크롭된 이미지 목록 -->
-                <div class="mb-4">
-                    <h3 class="font-bold mb-3">크롭된 이미지 (<span id="croppedCount">0</span>개)</h3>
-                    <div id="croppedList" class="space-y-2"></div>
                 </div>
 
                 <!-- 합성 버튼 -->

@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#4A90E2">
-    <meta http-equiv="refresh" content="0; url=/app.html">
+    <!-- meta refresh 제거: 쿼리 파라미터 유지 위해 JS로만 리다이렉트 -->
     <title>Image Composer</title>
     <link rel="manifest" href="/manifest.json">
 </head>
 <body>
     <p style="font-family: sans-serif; text-align: center; padding: 50px;">Redirecting to Image Composer...</p>
     <script>
-        window.location.href = '/app.html';
+        // 쿼리파라미터와 해시를 그대로 전달
+        window.location.replace('/app.html' + window.location.search + window.location.hash);
     </script>
 </body>
 </html>
